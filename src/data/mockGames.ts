@@ -1,7 +1,17 @@
-import type { Game } from '@/types/game';
+import type { Game, GameEvent } from '@/types/game';
 import { getKeywordsByCount } from './roleKeywords';
 
 const now = Date.now();
+
+const makeEvents = (events: Array<{ type: GameEvent['type']; name: string; detail: string; ago: number }>): GameEvent[] => {
+  return events.map((e, i) => ({
+    id: `event_mock_${i}`,
+    type: e.type,
+    playerName: e.name,
+    detail: e.detail,
+    timestamp: now - e.ago
+  }));
+};
 
 export const mockGames: Game[] = [
   {
@@ -44,7 +54,12 @@ export const mockGames: Game[] = [
     ],
     roleKeywords: getKeywordsByCount(6),
     createdAt: now - 3600000,
-    shareCode: 'ABC123'
+    shareCode: 'ABC123',
+    events: makeEvents([
+      { type: 'created', name: '小明', detail: '创建了「《落日惊魂》」', ago: 3600000 },
+      { type: 'joined', name: '小红', detail: '加入了车次', ago: 3000000 },
+      { type: 'joined', name: '小刚', detail: '加入了车次', ago: 2400000 }
+    ])
   },
   {
     id: 'game2',
@@ -95,7 +110,16 @@ export const mockGames: Game[] = [
     ],
     roleKeywords: getKeywordsByCount(5),
     createdAt: now - 7200000,
-    shareCode: 'DEF456'
+    shareCode: 'DEF456',
+    events: makeEvents([
+      { type: 'created', name: '小丽', detail: '创建了「《尘封的往事》」', ago: 7200000 },
+      { type: 'joined', name: '小华', detail: '加入了车次', ago: 7000000 },
+      { type: 'submitted', name: '小丽', detail: '提交了偏好', ago: 6000000 },
+      { type: 'submitted', name: '小华', detail: '提交了偏好', ago: 5500000 },
+      { type: 'joined', name: '小芳', detail: '加入了车次', ago: 5000000 },
+      { type: 'submitted', name: '小芳', detail: '提交了偏好', ago: 4000000 },
+      { type: 'joined', name: '小强', detail: '加入了车次', ago: 3500000 }
+    ])
   },
   {
     id: 'game3',
@@ -173,7 +197,16 @@ export const mockGames: Game[] = [
     ],
     roleKeywords: getKeywordsByCount(7),
     createdAt: now - 259200000,
-    shareCode: 'GHI789'
+    shareCode: 'GHI789',
+    events: makeEvents([
+      { type: 'created', name: '小明', detail: '创建了「《午夜钟声》」', ago: 259200000 },
+      { type: 'joined', name: '小美', detail: '加入了车次', ago: 258000000 },
+      { type: 'joined', name: '小军', detail: '加入了车次', ago: 257000000 },
+      { type: 'submitted', name: '小明', detail: '提交了偏好', ago: 200000000 },
+      { type: 'submitted', name: '小美', detail: '提交了偏好', ago: 195000000 },
+      { type: 'submitted', name: '小军', detail: '提交了偏好', ago: 190000000 },
+      { type: 'resultGenerated', name: '系统', detail: '全员已提交，分配结果已生成', ago: 180000000 }
+    ])
   }
 ];
 

@@ -7,12 +7,13 @@ import { useGame } from '@/store/GameContext';
 import PlanCard from '@/components/PlanCard';
 import { getGameResult, saveGameResult, getUserId } from '@/utils/storage';
 import { generateAssignmentPlans, incrementalRecalculate } from '@/utils/algorithm';
-import type { Game, AssignmentResult, Assignment } from '@/types/game';
+import { getResultFromCloud } from '@/services/cloudService';
+import type { Game, AssignmentResult } from '@/types/game';
 import styles from './index.module.scss';
 
 const GameResultPage: React.FC = () => {
   const router = useRouter();
-  const { games, getGame, updateGame, saveResult, refreshGameFromCloudSync } = useGame();
+  const { games, getGame, updateGame, saveResult, refreshGameFromCloudSync, syncState } = useGame();
   
   const [game, setGame] = useState<Game | null>(null);
   const [result, setResult] = useState<AssignmentResult | null>(null);
@@ -32,6 +33,7 @@ const GameResultPage: React.FC = () => {
       if (refreshed) {
         setGame(refreshed);
       }
+      await loadResultFromCloud(game.shareCode);
     }
   });
 
@@ -40,16 +42,14 @@ const GameResultPage: React.FC = () => {
     return {
       title: `🎭 ${game.scriptName} - 角色分配结果`,
       path: `/pages/home/index?invite=${game.shareCode}`,
-      imageUrl: ''
     };
   });
 
   useShareTimeline(() => {
     if (!game) return { title: '剧本杀角色分配', query: '' };
     return {
-      title: `🎭 ${game.scriptName} - 角色分配结果`,
+      title: `🎭 ${game.scriptName} - 邀请码 ${game.shareCode}`,
       query: `invite=${game.shareCode}`,
-      imageUrl: ''
     };
   });
 
@@ -57,6 +57,16 @@ const GameResultPage: React.FC = () => {
     const isFull = g.players.length >= g.playerCount;
     const allSubmitted = g.players.every(p => p.hasSubmitted);
     return isFull && allSubmitted;
+  };
+
+  const loadResultFromCloud = async (shareCode: string) => {
+    const { result: cloudResult, online } = await getResultFromCloud(shareCode);
+    if (cloudResult && cloudResult.plans.length > 0) {
+      saveGameResult(cloudResult);
+      setResult(cloudResult);
+      setCurrentPlanIndex(cloudResult.currentPlanIndex);
+      console.log('[GameResult] Result loaded from', online ? 'cloud' : 'cache');
+    }
   };
 
   const loadData = () => {
@@ -89,15 +99,12 @@ const GameResultPage: React.FC = () => {
 
         setResult(storedResult);
         setCurrentPlanIndex(storedResult.currentPlanIndex);
-      } else {
-        calculateResult(foundGame);
       }
     }
   };
 
   const calculateResult = (gameData: Game) => {
     const plans = generateAssignmentPlans(gameData);
-
     const newResult: AssignmentResult = {
       gameId: gameData.id,
       plans,
@@ -114,18 +121,13 @@ const GameResultPage: React.FC = () => {
   const handlePlanChange = (index: number) => {
     if (!result) return;
     setCurrentPlanIndex(index);
-    
-    const updatedResult: AssignmentResult = {
-      ...result,
-      currentPlanIndex: index
-    };
+    const updatedResult: AssignmentResult = { ...result, currentPlanIndex: index };
     saveResult(updatedResult);
     saveGameResult(updatedResult);
   };
 
   const handleRecalculate = async () => {
     if (!game) return;
-    
     if (!isGameReady(game)) {
       Taro.showToast({ title: '请等满员且全员提交后再计算', icon: 'none' });
       return;
@@ -144,7 +146,6 @@ const GameResultPage: React.FC = () => {
 
     if (res.confirm) {
       Taro.showLoading({ title: '计算中...' });
-      
       setTimeout(() => {
         if (hasPrevData) {
           const incResult = incrementalRecalculate(game, existingResult);
@@ -158,7 +159,6 @@ const GameResultPage: React.FC = () => {
             return;
           }
         }
-        
         calculateResult(game);
         Taro.hideLoading();
         Taro.showToast({ title: '计算完成', icon: 'success' });
@@ -173,40 +173,28 @@ const GameResultPage: React.FC = () => {
 
   const handleConfirm = async () => {
     if (!game || !result) return;
-    
     const currentPlan = result.plans[currentPlanIndex];
-    
     let resultText = `🎭 ${game.scriptName}\n\n`;
     resultText += `📋 方案：${currentPlan.name}\n`;
     resultText += `📝 说明：${currentPlan.description}\n`;
     resultText += `⏰ 生成时间：${dayjs(result.calculatedAt).format('MM-DD HH:mm')}\n\n`;
     resultText += `--- 角色分配 ---\n\n`;
-    
     currentPlan.assignments.forEach(assignment => {
       const keyword = game.roleKeywords.find(k => k.id === assignment.roleKeywordId);
       const player = game.players.find(p => p.id === assignment.playerId);
       if (keyword && player) {
         resultText += `🎭 ${keyword.keyword} → ${player.name}`;
-        if (assignment.isUpdated) {
-          resultText += ' 🔄';
-        }
+        if (assignment.isUpdated) resultText += ' 🔄';
         resultText += '\n';
-        if (assignment.reasons.length > 0) {
-          resultText += `   理由：${assignment.reasons[0]}\n`;
-        }
+        if (assignment.reasons.length > 0) resultText += `   理由：${assignment.reasons[0]}\n`;
         resultText += '\n';
       }
     });
-
     try {
       await Taro.setClipboardData({ data: resultText });
       Taro.showToast({ title: '结果已复制', icon: 'success' });
     } catch {
-      Taro.showModal({
-        title: '分配结果',
-        content: resultText,
-        showCancel: false
-      });
+      Taro.showModal({ title: '分配结果', content: resultText, showCancel: false });
     }
   };
 
@@ -224,8 +212,7 @@ const GameResultPage: React.FC = () => {
   const submittedCount = game.players.filter(p => p.hasSubmitted).length;
   const isFull = game.players.length >= game.playerCount;
   const allSubmitted = isFull && game.players.every(p => p.hasSubmitted);
-  const progressPercent = game.playerCount > 0 ? 
-    Math.min(100, Math.round((submittedCount / game.playerCount) * 100)) : 0;
+  const progressPercent = game.playerCount > 0 ? Math.min(100, Math.round((submittedCount / game.playerCount) * 100)) : 0;
   const hasVacantSlot = game.players.some(p => p.isReplaced && !p.hasSubmitted);
 
   if (!allSubmitted || hasVacantSlot) {
@@ -235,46 +222,24 @@ const GameResultPage: React.FC = () => {
           <Text className={styles.title}>⏳ 等待提交</Text>
           <Text className={styles.subtitle}>{game.scriptName}</Text>
         </View>
-
         <View className={styles.notReadyCard}>
           <View className={styles.notReadyInfo}>
-            <Text className={styles.notReadyText}>
-              已提交 {submittedCount}/{game.playerCount}
-            </Text>
-            <Text className={classnames(
-              styles.notReadyStatus,
-              hasVacantSlot ? styles.recruiting : (isFull ? styles.waiting : styles.recruiting)
-            )}>
-              {hasVacantSlot ? '⚠️ 有空位待认领' : (isFull ? '⏳ 等待剩余玩家提交' : '👥 招募中')}
+            <Text className={styles.notReadyText}>已提交 {submittedCount}/{game.playerCount}</Text>
+            <Text className={classnames(styles.notReadyStatus, hasVacantSlot ? styles.recruiting : (isFull ? styles.waiting : styles.recruiting))}>
+              {hasVacantSlot ? '⚠️ 有空位待认领' : (isFull ? '⏳ 等待提交' : '👥 招募中')}
             </Text>
           </View>
           <View className={styles.progressBar}>
-            <View 
-              className={styles.progressFill} 
-              style={{ width: `${progressPercent}%` }} 
-            />
+            <View className={styles.progressFill} style={{ width: `${progressPercent}%` }} />
           </View>
-          {hasVacantSlot && (
-            <Text className={styles.notReadyTip}>
-              ⚠️ 有空位待认领，请把邀请码 {game.shareCode} 发给新玩家
-            </Text>
-          )}
-          {!isFull && !hasVacantSlot && (
-            <Text className={styles.notReadyTip}>
-              💡 还差 {game.playerCount - game.players.length} 人满员，分配结果将在全员提交后生成
-            </Text>
-          )}
-          {isFull && !allSubmitted && !hasVacantSlot && (
-            <Text className={styles.notReadyTip}>
-              ⏳ 还差 {game.players.length - submittedCount} 人提交，请耐心等待
-            </Text>
-          )}
+          <Text className={styles.notReadyTip}>
+            {hasVacantSlot ? `⚠️ 有空位待认领，邀请码 ${game.shareCode}` :
+             (!isFull ? `💡 还差 ${game.playerCount - game.players.length} 人满员` :
+             `⏳ 还差 ${game.players.length - submittedCount} 人提交`)}
+          </Text>
         </View>
-
         <View className={styles.notReadyActions}>
-          <Button className={styles.backBtn} onClick={handleBackToEdit}>
-            返回详情页
-          </Button>
+          <Button className={styles.backBtn} onClick={handleBackToEdit}>返回详情页</Button>
         </View>
       </ScrollView>
     );
@@ -292,8 +257,7 @@ const GameResultPage: React.FC = () => {
   }
 
   const currentPlan = result.plans[currentPlanIndex];
-  const updatedAssignments = currentPlan.assignments.filter(a => a.isUpdated);
-  const updatedCount = updatedAssignments.length;
+  const updatedCount = currentPlan.assignments.filter(a => a.isUpdated).length;
 
   return (
     <ScrollView className={styles.page} scrollY>
@@ -302,9 +266,7 @@ const GameResultPage: React.FC = () => {
         <Text className={styles.subtitle}>{game.scriptName}</Text>
         {updatedCount > 0 && (
           <View className={styles.updatedNotice}>
-            <Text className={styles.updatedText}>
-              🔄 本次有 {updatedCount} 个分配因换人调整，标记为高亮，其余玩家保持原分配不变
-            </Text>
+            <Text className={styles.updatedText}>🔄 本次有 {updatedCount} 个分配因换人调整，其余玩家保持原分配</Text>
           </View>
         )}
       </View>
@@ -314,57 +276,25 @@ const GameResultPage: React.FC = () => {
           <View
             key={plan.type}
             className={classnames(styles.planTab, currentPlanIndex === index && styles.planTabActive)}
-            style={{
-              backgroundColor: currentPlanIndex === index ? plan.color : 'transparent',
-              borderColor: plan.color
-            }}
+            style={{ backgroundColor: currentPlanIndex === index ? plan.color : 'transparent', borderColor: plan.color }}
             onClick={() => handlePlanChange(index)}
           >
-            <Text
-              className={styles.planTabName}
-              style={{ color: currentPlanIndex === index ? '#fff' : plan.color }}
-            >
-              {plan.name}
-            </Text>
-            <Text
-              className={styles.planTabScore}
-              style={{ color: currentPlanIndex === index ? 'rgba(255,255,255,0.8)' : plan.color }}
-            >
-              匹配度 {plan.score}
-            </Text>
+            <Text className={styles.planTabName} style={{ color: currentPlanIndex === index ? '#fff' : plan.color }}>{plan.name}</Text>
+            <Text className={styles.planTabScore} style={{ color: currentPlanIndex === index ? 'rgba(255,255,255,0.8)' : plan.color }}>匹配度 {plan.score}</Text>
           </View>
         ))}
       </View>
 
       <View className={styles.planCardWrapper}>
-        <PlanCard
-          plan={currentPlan}
-          game={game}
-          active={true}
-        />
+        <PlanCard plan={currentPlan} game={game} active={true} />
       </View>
 
       <View className={styles.actionSection}>
-        <Button
-          className={classnames(styles.actionBtn, styles.secondaryBtn)}
-          onClick={handleBackToEdit}
-        >
-          修改偏好
-        </Button>
+        <Button className={classnames(styles.actionBtn, styles.secondaryBtn)} onClick={handleBackToEdit}>修改偏好</Button>
         {isCreator && (
-          <Button
-            className={classnames(styles.actionBtn, styles.recalculateBtn)}
-            onClick={handleRecalculate}
-          >
-            重新计算
-          </Button>
+          <Button className={classnames(styles.actionBtn, styles.recalculateBtn)} onClick={handleRecalculate}>重新计算</Button>
         )}
-        <Button
-          className={classnames(styles.actionBtn, styles.primaryBtn)}
-          onClick={handleConfirm}
-        >
-          确认并复制
-        </Button>
+        <Button className={classnames(styles.actionBtn, styles.primaryBtn)} onClick={handleConfirm}>确认并复制</Button>
       </View>
     </ScrollView>
   );

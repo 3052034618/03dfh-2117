@@ -27,6 +27,23 @@ export interface RoleKeyword {
   attributes: string[];
 }
 
+export type GameEventType =
+  | 'created'
+  | 'joined'
+  | 'submitted'
+  | 'vacated'
+  | 'claimed'
+  | 'removed'
+  | 'resultGenerated';
+
+export interface GameEvent {
+  id: string;
+  type: GameEventType;
+  playerName: string;
+  detail?: string;
+  timestamp: number;
+}
+
 export interface Game {
   id: string;
   scriptName: string;
@@ -38,6 +55,7 @@ export interface Game {
   status: 'recruiting' | 'submitting' | 'completed';
   players: Player[];
   roleKeywords: RoleKeyword[];
+  events: GameEvent[];
   createdAt: number;
   shareCode: string;
   lastCalculatedAt?: number;

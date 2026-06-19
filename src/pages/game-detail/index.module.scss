@@ -107,6 +107,140 @@
   margin-top: $spacing-xl;
 }
 
+.syncBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6rpx;
+  margin-left: 16rpx;
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+  background-color: rgba(255, 255, 255, 0.15);
+  cursor: pointer;
+}
+
+.syncDot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.5);
+}
+
+.syncOnline .syncDot {
+  background-color: #00B894;
+}
+
+.syncOffline .syncDot {
+  background-color: #F39C12;
+}
+
+.syncBadgeText {
+  font-size: 22rpx;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.syncConfig {
+  margin-top: $spacing-md;
+  padding: $spacing-md;
+  background-color: rgba(0, 0, 0, 0.15);
+  border-radius: $radius-md;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.syncConfigRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.syncConfigLabel {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.syncConfigValue {
+  font-size: 24rpx;
+  color: rgba(255, 255, 255, 0.9);
+  word-break: break-all;
+  text-align: right;
+  max-width: 400rpx;
+}
+
+.textGreen {
+  color: #00B894;
+}
+
+.textOrange {
+  color: #F39C12;
+}
+
+.syncCheckBtn {
+  @include button-reset;
+  height: 56rpx;
+  margin-top: $spacing-xs;
+  background-color: rgba(255, 255, 255, 0.15);
+  border: 2rpx solid rgba(255, 255, 255, 0.3);
+  border-radius: $radius-sm;
+  color: $color-text-white;
+  font-size: 24rpx;
+  font-weight: $font-weight-medium;
+
+  &:active {
+    background-color: rgba(255, 255, 255, 0.25);
+  }
+}
+
+.eventList {
+  background-color: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-md $spacing-lg;
+  box-shadow: $shadow-card;
+}
+
+.eventItem {
+  display: flex;
+  align-items: flex-start;
+  padding: $spacing-sm 0;
+  border-bottom: 1rpx solid $color-bg-page;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.eventIcon {
+  width: 48rpx;
+  height: 48rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: $spacing-sm;
+  flex-shrink: 0;
+  font-size: 28rpx;
+}
+
+.eventContent {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: $spacing-sm;
+}
+
+.eventText {
+  font-size: $font-size-sm;
+  color: $color-text-primary;
+  line-height: 1.5;
+}
+
+.eventTime {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  flex-shrink: 0;
+  margin-top: 4rpx;
+}
+
 .sectionHeader {
   display: flex;
   align-items: center;
