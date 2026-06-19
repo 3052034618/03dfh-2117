@@ -24,6 +24,122 @@
   color: $color-text-tertiary;
 }
 
+.updatedNotice {
+  margin-top: $spacing-md;
+  padding: $spacing-sm $spacing-md;
+  background-color: rgba(253, 121, 168, 0.1);
+  border-radius: $radius-sm;
+  display: inline-block;
+}
+
+.updatedText {
+  font-size: $font-size-sm;
+  color: #FD79A8;
+  font-weight: $font-weight-medium;
+}
+
+.notReadyCard {
+  background-color: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  box-shadow: $shadow-card;
+  margin-top: $spacing-md;
+}
+
+.notReadyInfo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-md;
+}
+
+.notReadyText {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-bold;
+  color: $color-text-primary;
+}
+
+.notReadyStatus {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  padding: 4rpx 16rpx;
+  border-radius: $radius-round;
+
+  &.waiting {
+    background-color: rgba(253, 121, 168, 0.1);
+    color: #FD79A8;
+  }
+
+  &.recruiting {
+    background-color: rgba(108, 92, 231, 0.1);
+    color: $color-primary;
+  }
+}
+
+.progressBar {
+  width: 100%;
+  height: 16rpx;
+  background-color: $color-bg-page;
+  border-radius: $radius-round;
+  overflow: hidden;
+  margin-bottom: $spacing-sm;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, $color-primary 0%, $color-primary-light 100%);
+  border-radius: $radius-round;
+  transition: width 0.3s ease;
+}
+
+.notReadyTip {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  line-height: 1.5;
+}
+
+.notReadyActions {
+  margin-top: $spacing-xl;
+  display: flex;
+  justify-content: center;
+}
+
+.backBtn {
+  @include button-reset;
+  height: $button-height-md;
+  padding: 0 $spacing-xl;
+  background-color: $color-bg-card;
+  border-radius: $radius-button;
+  border: 2rpx solid $color-border;
+  color: $color-text-secondary;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  transition: all $transition-base;
+
+  &:active {
+    transform: scale(0.96);
+    border-color: $color-primary;
+    color: $color-primary;
+  }
+}
+
+.planTab {
+  flex: 1;
+  padding: $spacing-md $spacing-sm;
+  border-radius: $radius-md;
+  text-align: center;
+  transition: all $transition-base;
+  border: 2rpx solid transparent;
+
+  &:active {
+    transform: scale(0.96);
+  }
+
+  &.planTabActive {
+    border-width: 0;
+  }
+}
+
 .planTabs {
   display: flex;
   background-color: $color-bg-card;

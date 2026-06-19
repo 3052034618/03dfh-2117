@@ -7,20 +7,22 @@ import { useGame } from '@/store/GameContext';
 import PlayerTag from '@/components/PlayerTag';
 import KeywordSort from '@/components/KeywordSort';
 import { playerTags } from '@/data/roleKeywords';
-import { getUserId, getUserName, generateId } from '@/utils/storage';
+import { getUserId, generateId } from '@/utils/storage';
 import { generateAssignmentPlans } from '@/utils/algorithm';
+import { shareGameToFriend } from '@/services/cloudService';
 import type { Game, Player, PlayerTagType } from '@/types/game';
 import styles from './index.module.scss';
 
 const GameDetailPage: React.FC = () => {
   const router = useRouter();
-  const { games, updateGame, saveResult, refreshGames } = useGame();
+  const { games, updateGame, saveResult, refreshGames, refreshGameFromCloudSync } = useGame();
   
   const [game, setGame] = useState<Game | null>(null);
   const [currentPlayer, setCurrentPlayer] = useState<Player | null>(null);
   const [selectedTags, setSelectedTags] = useState<PlayerTagType[]>([]);
   const [keywordRanking, setKeywordRanking] = useState<string[]>([]);
   const [isCreator, setIsCreator] = useState(false);
+  const [replacePlayerId, setReplacePlayerId] = useState<string | null>(null);
 
   const gameId = router.params.id as string;
 
@@ -31,6 +33,9 @@ const GameDetailPage: React.FC = () => {
   useDidShow(() => {
     refreshGames();
     loadGame();
+    if (game?.shareCode) {
+      refreshGameFromCloudSync(game.id, game.shareCode);
+    }
   });
 
   const loadGame = () => {
@@ -51,17 +56,7 @@ const GameDetailPage: React.FC = () => {
 
   const handleShare = async () => {
     if (!game) return;
-    
-    try {
-      await Taro.setClipboardData({ data: game.shareCode });
-      Taro.showToast({ 
-        title: `邀请码 ${game.shareCode} 已复制`, 
-        icon: 'success' 
-      });
-    } catch (e) {
-      console.error('[GameDetail] Share error:', e);
-      Taro.showToast({ title: '复制失败', icon: 'none' });
-    }
+    await shareGameToFriend(game);
   };
 
   const toggleTag = (tag: PlayerTagType) => {
@@ -70,6 +65,12 @@ const GameDetailPage: React.FC = () => {
     } else {
       setSelectedTags(prev => [...prev, tag]);
     }
+  };
+
+  const isGameReady = (g: Game): boolean => {
+    const isFull = g.players.length >= g.playerCount;
+    const allSubmitted = g.players.every(p => p.hasSubmitted);
+    return isFull && allSubmitted;
   };
 
   const handleSubmit = () => {
@@ -94,34 +95,37 @@ const GameDetailPage: React.FC = () => {
           ...p,
           tags: selectedTags,
           keywordRanking,
-          submitted: true
+          hasSubmitted: true
         };
       }
       return p;
     });
 
-    const allSubmitted = updatedPlayers.every(p => p.submitted);
+    const ready = updatedPlayers.length >= game.playerCount && 
+                  updatedPlayers.every(p => p.hasSubmitted);
+
     const updatedGame: Game = {
       ...game,
       players: updatedPlayers,
-      status: allSubmitted ? 'completed' : game.status
+      status: ready ? 'completed' : (updatedPlayers.length >= game.playerCount ? 'submitting' : 'recruiting')
     };
 
     updateGame(updatedGame);
     setGame(updatedGame);
 
-    if (allSubmitted) {
+    if (ready) {
       const plans = generateAssignmentPlans(updatedGame);
       saveResult({
         gameId: game.id,
         plans,
         currentPlanIndex: 0,
-        calculatedAt: Date.now()
+        calculatedAt: Date.now(),
+        previousPlayerIds: updatedPlayers.map(p => p.id)
       });
 
       Taro.showModal({
         title: '🎉 所有人已提交',
-        content: '是否立即查看分配结果？',
+        content: '已为你生成三种分配方案，是否立即查看？',
         confirmText: '查看结果',
         cancelText: '稍后再说'
       }).then(res => {
@@ -136,6 +140,10 @@ const GameDetailPage: React.FC = () => {
 
   const handleViewResult = () => {
     if (!game) return;
+    if (!isGameReady(game)) {
+      Taro.showToast({ title: '请等满员且全员提交后再查看', icon: 'none' });
+      return;
+    }
     Taro.navigateTo({ url: `/pages/game-result/index?id=${game.id}` });
   };
 
@@ -143,8 +151,8 @@ const GameDetailPage: React.FC = () => {
     if (!game || !isCreator) return;
     
     const res = await Taro.showModal({
-      title: '确认移除',
-      content: '确定要移除该玩家吗？',
+      title: '移除玩家',
+      content: '确定要移除该玩家吗？该玩家的提交数据将被清除。',
       confirmText: '移除',
       confirmColor: '#F53F3F'
     });
@@ -154,11 +162,60 @@ const GameDetailPage: React.FC = () => {
       const updatedGame: Game = {
         ...game,
         players: updatedPlayers,
-        status: updatedPlayers.length >= game.playerCount ? game.status : 'recruiting'
+        status: updatedPlayers.length >= game.playerCount ? 'submitting' : 'recruiting'
       };
       updateGame(updatedGame);
       setGame(updatedGame);
       Taro.showToast({ title: '已移除', icon: 'success' });
+    }
+  };
+
+  const handleReplacePlayer = async (playerId: string) => {
+    if (!game || !isCreator) return;
+
+    const player = game.players.find(p => p.id === playerId);
+    if (!player) return;
+
+    const res = await Taro.showModal({
+      title: `替换「${player.name}」`,
+      content: '请输入新玩家昵称，替换后原玩家的提交数据将被清除。',
+      editable: true,
+      placeholderText: '请输入新玩家昵称',
+      confirmText: '替换',
+      cancelText: '取消'
+    });
+
+    if (res.confirm && res.content && res.content.trim()) {
+      const newName = res.content.trim();
+      const updatedPlayers = game.players.map(p => {
+        if (p.id === playerId) {
+          return {
+            ...p,
+            id: generateId(),
+            name: newName,
+            avatar: `https://picsum.photos/id/${Math.floor(Math.random() * 100)}/200/200`,
+            tags: [],
+            keywordRanking: [],
+            hasSubmitted: false,
+            joinedAt: Date.now(),
+            isReplaced: true,
+            replacedAt: Date.now(),
+            originalName: player.name
+          };
+        }
+        return p;
+      });
+
+      const updatedGame: Game = {
+        ...game,
+        players: updatedPlayers,
+        status: updatedPlayers.length >= game.playerCount ? 'submitting' : 'recruiting'
+      };
+
+      updateGame(updatedGame);
+      setGame(updatedGame);
+      setReplacePlayerId(null);
+      Taro.showToast({ title: '替换成功', icon: 'success' });
     }
   };
 
@@ -183,7 +240,7 @@ const GameDetailPage: React.FC = () => {
         avatar: `https://picsum.photos/id/${Math.floor(Math.random() * 100)}/200/200`,
         tags: [],
         keywordRanking: [],
-        submitted: false,
+        hasSubmitted: false,
         joinedAt: Date.now()
       };
 
@@ -210,11 +267,14 @@ const GameDetailPage: React.FC = () => {
     );
   }
 
-  const submittedCount = game.players.filter(p => p.submitted).length;
-  const allSubmitted = submittedCount === game.players.length && game.players.length === game.playerCount;
-  const canSubmit = !currentPlayer?.submitted && 
+  const submittedCount = game.players.filter(p => p.hasSubmitted).length;
+  const isFull = game.players.length >= game.playerCount;
+  const allSubmitted = isFull && game.players.every(p => p.hasSubmitted);
+  const canSubmit = currentPlayer && !currentPlayer.hasSubmitted && 
                     selectedTags.length > 0 && 
                     keywordRanking.length === game.roleKeywords.length;
+  const progressPercent = game.playerCount > 0 ? 
+    Math.min(100, Math.round((submittedCount / game.playerCount) * 100)) : 0;
 
   return (
     <ScrollView className={styles.page} scrollY>
@@ -224,8 +284,9 @@ const GameDetailPage: React.FC = () => {
         <View className={styles.infoGrid}>
           <View className={styles.infoItem}>
             <Text className={styles.infoLabel}>人数</Text>
-            <Text className={styles.infoValue}>
+            <Text className={classnames(styles.infoValue, isFull && styles.full)}>
               {game.players.length}/{game.playerCount}人
+              {isFull && ' ✓'}
             </Text>
           </View>
           <View className={styles.infoItem}>
@@ -252,22 +313,76 @@ const GameDetailPage: React.FC = () => {
             <Text className={styles.shareCode}>{game.shareCode}</Text>
           </View>
           <Button className={styles.shareBtn} onClick={handleShare}>
-            复制邀请码
+            分享邀请
           </Button>
         </View>
       </View>
 
       <View className={styles.section}>
         <View className={styles.sectionHeader}>
+          <Text className={styles.sectionTitle}>� 提交进度</Text>
+        </View>
+        <View className={styles.progressCard}>
+          <View className={styles.progressInfo}>
+            <Text className={styles.progressText}>
+              已提交 {submittedCount}/{game.playerCount}
+            </Text>
+            <Text className={classnames(
+              styles.progressStatus,
+              allSubmitted ? styles.done : (isFull ? styles.waiting : styles.recruiting)
+            )}>
+              {allSubmitted ? '✓ 全员已提交' : (isFull ? '⏳ 等待剩余玩家提交' : '👥 招募中')}
+            </Text>
+          </View>
+          <View className={styles.progressBar}>
+            <View 
+              className={classnames(
+                styles.progressFill,
+                allSubmitted ? styles.doneFill : styles.normalFill
+              )} 
+              style={{ width: `${progressPercent}%` }} 
+            />
+          </View>
+          {!isFull && (
+            <Text className={styles.progressTip}>
+              💡 还差 {game.playerCount - game.players.length} 人满员，快邀请好友加入吧！
+            </Text>
+          )}
+          {isFull && !allSubmitted && (
+            <Text className={styles.progressTip}>
+              ⏳ 还差 {game.players.length - submittedCount} 人提交，结果将在全员提交后生成
+            </Text>
+          )}
+          {allSubmitted && (
+            <Text className={styles.progressTip}>
+              🎉 所有人已完成提交，点击下方按钮查看分配结果
+            </Text>
+          )}
+        </View>
+      </View>
+
+      <View className={styles.section}>
+        <View className={styles.sectionHeader}>
           <Text className={styles.sectionTitle}>👥 玩家列表</Text>
-          <Text className={styles.sectionCount}>
-            已提交 {submittedCount}/{game.players.length}
-          </Text>
+          {isCreator && (
+            <Text className={styles.sectionTip}>点击玩家卡片可替换</Text>
+          )}
         </View>
 
         <View className={styles.playerList}>
           {game.players.map(player => (
-            <View key={player.id} className={styles.playerItem}>
+            <View 
+              key={player.id} 
+              className={classnames(
+                styles.playerItem,
+                isCreator && player.id !== game.creatorId && styles.playerClickable
+              )}
+              onClick={() => {
+                if (isCreator && player.id !== game.creatorId) {
+                  setReplacePlayerId(replacePlayerId === player.id ? null : player.id);
+                }
+              }}
+            >
               <Image
                 className={styles.playerAvatar}
                 src={player.avatar}
@@ -281,12 +396,20 @@ const GameDetailPage: React.FC = () => {
                       <Text className={styles.creatorText}>发起人</Text>
                     </View>
                   )}
+                  {player.isReplaced && (
+                    <View className={styles.replacedBadge}>
+                      <Text className={styles.replacedText}>替换</Text>
+                    </View>
+                  )}
                 </View>
+                {player.originalName && (
+                  <Text className={styles.originalName}>原：{player.originalName}</Text>
+                )}
                 <View className={styles.playerTags}>
                   {player.tags.map(tag => (
                     <PlayerTag key={tag} tag={tag} size="sm" />
                   ))}
-                  {player.tags.length === 0 && player.submitted === false && (
+                  {player.tags.length === 0 && !player.hasSubmitted && (
                     <Text style={{ fontSize: '24rpx', color: '#B2BEC3' }}>
                       待选择标签
                     </Text>
@@ -297,20 +420,34 @@ const GameDetailPage: React.FC = () => {
                 <View
                   className={classnames(
                     styles.statusDot,
-                    player.submitted && styles.submitted
+                    player.hasSubmitted && styles.submitted
                   )}
                 />
                 <Text className={styles.statusText}>
-                  {player.submitted ? '已提交' : '待提交'}
+                  {player.hasSubmitted ? '已提交' : '待提交'}
                 </Text>
               </View>
-              {isCreator && player.id !== game.creatorId && (
-                <Button
-                  className={styles.removeBtn}
-                  onClick={() => handleRemovePlayer(player.id)}
-                >
-                  <Text className={styles.removeIcon}>×</Text>
-                </Button>
+              {isCreator && replacePlayerId === player.id && player.id !== game.creatorId && (
+                <View className={styles.replaceActions}>
+                  <Button 
+                    className={styles.replaceBtn}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleReplacePlayer(player.id);
+                    }}
+                  >
+                    🔄 替换
+                  </Button>
+                  <Button 
+                    className={styles.removeBtnSmall}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemovePlayer(player.id);
+                    }}
+                  >
+                    🗑️ 移除
+                  </Button>
+                </View>
               )}
             </View>
           ))}
@@ -323,7 +460,7 @@ const GameDetailPage: React.FC = () => {
         )}
       </View>
 
-      {currentPlayer && !currentPlayer.submitted && (
+      {currentPlayer && !currentPlayer.hasSubmitted && (
         <View className={styles.section}>
           <View className={styles.card}>
             <View className={styles.tagsSection}>
@@ -352,12 +489,20 @@ const GameDetailPage: React.FC = () => {
         </View>
       )}
 
-      {currentPlayer?.submitted && !allSubmitted && (
+      {currentPlayer?.hasSubmitted && !allSubmitted && (
         <View className={styles.section}>
           <View className={styles.card}>
-            <Text style={{ fontSize: '28rpx', color: '#636E72', textAlign: 'center' }}>
-              ✓ 你已提交偏好，等待其他玩家提交...
-            </Text>
+            <View style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16rpx' }}>
+              <Text style={{ fontSize: '32rpx', color: '#00B894', fontWeight: 600 }}>
+                ✓ 你已提交偏好
+              </Text>
+              <Text style={{ fontSize: '26rpx', color: '#636E72', textAlign: 'center' }}>
+                {isFull 
+                  ? `等待其他 ${game.players.length - submittedCount} 位玩家提交...`
+                  : `等待满员和其他玩家提交...`
+                }
+              </Text>
+            </View>
           </View>
         </View>
       )}
@@ -371,7 +516,7 @@ const GameDetailPage: React.FC = () => {
         </Button>
       )}
 
-      {!allSubmitted && currentPlayer && !currentPlayer.submitted && (
+      {!allSubmitted && currentPlayer && !currentPlayer.hasSubmitted && (
         <Button
           className={classnames(styles.submitBtn, !canSubmit && styles.disabled)}
           onClick={handleSubmit}

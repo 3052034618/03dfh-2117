@@ -13,8 +13,11 @@ export interface Player {
   avatar: string;
   tags: PlayerTagType[];
   keywordRanking: string[];
-  submitted: boolean;
+  hasSubmitted: boolean;
   joinedAt: number;
+  isReplaced?: boolean;
+  replacedAt?: number;
+  originalName?: string;
 }
 
 export interface RoleKeyword {
@@ -37,6 +40,7 @@ export interface Game {
   roleKeywords: RoleKeyword[];
   createdAt: number;
   shareCode: string;
+  lastCalculatedAt?: number;
 }
 
 export type PlanType = 'preference' | 'balance' | 'newbie';
@@ -45,6 +49,7 @@ export interface Assignment {
   roleKeywordId: string;
   playerId: string;
   reasons: string[];
+  isUpdated?: boolean;
 }
 
 export interface Plan {
@@ -61,4 +66,5 @@ export interface AssignmentResult {
   plans: Plan[];
   currentPlanIndex: number;
   calculatedAt: number;
+  previousPlayerIds?: string[];
 }

@@ -126,7 +126,7 @@ const CreateGamePage: React.FC = () => {
           avatar: `https://picsum.photos/id/${Math.floor(Math.random() * 100)}/200/200`,
           tags: [] as PlayerTagType[],
           keywordRanking: [],
-          submitted: false,
+          hasSubmitted: false,
           joinedAt: Date.now()
         }
       ],

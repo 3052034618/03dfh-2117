@@ -64,6 +64,12 @@
   padding: $spacing-md;
   background-color: $color-bg-page;
   border-radius: $radius-md;
+  transition: all $transition-base;
+
+  &.updatedItem {
+    background-color: rgba(253, 121, 168, 0.08);
+    border: 2rpx solid rgba(253, 121, 168, 0.3);
+  }
 }
 
 .assignmentHeader {
@@ -78,12 +84,23 @@
   border-radius: $radius-sm;
   border-left: 6rpx solid;
   margin-right: $spacing-sm;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+
+  &.updatedBadge {
+    background-color: rgba(253, 121, 168, 0.1);
+  }
 }
 
 .keywordName {
   font-size: $font-size-sm;
   font-weight: $font-weight-semibold;
   color: $color-text-primary;
+}
+
+.updatedMark {
+  font-size: 24rpx;
 }
 
 .arrow {

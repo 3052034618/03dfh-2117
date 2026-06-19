@@ -20,7 +20,7 @@ export const mockGames: Game[] = [
         avatar: 'https://picsum.photos/id/64/200/200',
         tags: ['hardcore'],
         keywordRanking: [],
-        submitted: false,
+        hasSubmitted: false,
         joinedAt: now
       },
       {
@@ -29,7 +29,7 @@ export const mockGames: Game[] = [
         avatar: 'https://picsum.photos/id/91/200/200',
         tags: ['emotion'],
         keywordRanking: [],
-        submitted: false,
+        hasSubmitted: false,
         joinedAt: now
       },
       {
@@ -38,7 +38,7 @@ export const mockGames: Game[] = [
         avatar: 'https://picsum.photos/id/177/200/200',
         tags: ['newbie'],
         keywordRanking: [],
-        submitted: false,
+        hasSubmitted: false,
         joinedAt: now
       }
     ],
@@ -62,7 +62,7 @@ export const mockGames: Game[] = [
         avatar: 'https://picsum.photos/id/338/200/200',
         tags: ['emotion', 'noKiller'],
         keywordRanking: ['kw1', 'kw3', 'kw6', 'kw2', 'kw4'],
-        submitted: true,
+        hasSubmitted: true,
         joinedAt: now - 7200000
       },
       {
@@ -71,7 +71,7 @@ export const mockGames: Game[] = [
         avatar: 'https://picsum.photos/id/1027/200/200',
         tags: ['hardcore'],
         keywordRanking: ['kw4', 'kw5', 'kw7', 'kw8', 'kw1'],
-        submitted: true,
+        hasSubmitted: true,
         joinedAt: now - 7000000
       },
       {
@@ -80,7 +80,7 @@ export const mockGames: Game[] = [
         avatar: 'https://picsum.photos/id/64/200/200',
         tags: ['newbie', 'noKiller'],
         keywordRanking: ['kw12', 'kw10', 'kw2', 'kw6', 'kw3'],
-        submitted: true,
+        hasSubmitted: true,
         joinedAt: now - 6800000
       },
       {
@@ -89,7 +89,7 @@ export const mockGames: Game[] = [
         avatar: 'https://picsum.photos/id/91/200/200',
         tags: ['support'],
         keywordRanking: [],
-        submitted: false,
+        hasSubmitted: false,
         joinedAt: now - 6600000
       }
     ],
@@ -113,7 +113,7 @@ export const mockGames: Game[] = [
         avatar: 'https://picsum.photos/id/64/200/200',
         tags: ['hardcore'],
         keywordRanking: ['kw4', 'kw7', 'kw5', 'kw8', 'kw1', 'kw9', 'kw11'],
-        submitted: true,
+        hasSubmitted: true,
         joinedAt: now - 172800000
       },
       {
@@ -122,7 +122,7 @@ export const mockGames: Game[] = [
         avatar: 'https://picsum.photos/id/338/200/200',
         tags: ['emotion'],
         keywordRanking: ['kw3', 'kw6', 'kw1', 'kw12', 'kw10', 'kw2', 'kw9'],
-        submitted: true,
+        hasSubmitted: true,
         joinedAt: now - 172800000
       },
       {
@@ -131,7 +131,7 @@ export const mockGames: Game[] = [
         avatar: 'https://picsum.photos/id/177/200/200',
         tags: ['newbie'],
         keywordRanking: ['kw12', 'kw10', 'kw2', 'kw6', 'kw3', 'kw1', 'kw8'],
-        submitted: true,
+        hasSubmitted: true,
         joinedAt: now - 172800000
       },
       {
@@ -140,7 +140,7 @@ export const mockGames: Game[] = [
         avatar: 'https://picsum.photos/id/91/200/200',
         tags: ['hardcore', 'noKiller'],
         keywordRanking: ['kw8', 'kw4', 'kw1', 'kw6', 'kw12', 'kw10', 'kw2'],
-        submitted: true,
+        hasSubmitted: true,
         joinedAt: now - 172800000
       },
       {
@@ -149,7 +149,7 @@ export const mockGames: Game[] = [
         avatar: 'https://picsum.photos/id/1027/200/200',
         tags: ['emotion', 'support'],
         keywordRanking: ['kw2', 'kw9', 'kw10', 'kw12', 'kw3', 'kw6', 'kw1'],
-        submitted: true,
+        hasSubmitted: true,
         joinedAt: now - 172800000
       },
       {
@@ -158,7 +158,7 @@ export const mockGames: Game[] = [
         avatar: 'https://picsum.photos/id/64/200/200',
         tags: ['hardcore'],
         keywordRanking: ['kw5', 'kw11', 'kw9', 'kw4', 'kw7', 'kw1', 'kw6'],
-        submitted: true,
+        hasSubmitted: true,
         joinedAt: now - 172800000
       },
       {
@@ -167,7 +167,7 @@ export const mockGames: Game[] = [
         avatar: 'https://picsum.photos/id/177/200/200',
         tags: ['newbie', 'noKiller'],
         keywordRanking: ['kw10', 'kw12', 'kw2', 'kw6', 'kw3', 'kw8', 'kw1'],
-        submitted: true,
+        hasSubmitted: true,
         joinedAt: now - 172800000
       }
     ],

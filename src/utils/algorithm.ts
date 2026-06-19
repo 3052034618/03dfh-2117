@@ -29,10 +29,10 @@ const keywordAttributeMap: Record<string, string[]> = {
   '独行者': ['lowSocial', 'edge'],
   '情感线重': ['emotional'],
   '推理担当': ['rational', 'complex'],
-  '反转位': ['hasReverse', 'killer'],
+  '剧情起伏': ['hasReverse', 'killer'],
   'CP位': ['highSocial', 'emotional'],
-  '凶手位': ['killer', 'hasReverse', 'central'],
-  '侦探位': ['rational', 'central', 'noReverse'],
+  '压力担当': ['killer', 'hasReverse', 'central'],
+  '逻辑担当': ['rational', 'central', 'noReverse'],
   '神秘人': ['hasReverse', 'edge'],
   '搞笑担当': ['highSocial', 'edge'],
   '背负秘密': ['hasReverse', 'complex'],
@@ -86,13 +86,13 @@ export const calculateMatchScore = (
           } else if (tag === 'emotion' && attr === 'emotional') {
             reasons.push('情感本爱好者适合情感线重的角色');
           } else if (tag === 'newbie' && attr === 'noReverse') {
-            reasons.push('新手不排斥无反转的角色');
+            reasons.push('新手适合剧情平稳的角色');
           } else if (tag === 'hardcore' && attr === 'hasReverse') {
-            reasons.push('硬核玩家偏好有反转的角色');
+            reasons.push('硬核玩家偏好有剧情起伏的角色');
           } else if (attr === 'highSocial') {
             reasons.push('他偏好高社交属性的角色');
           } else if (attr === 'noReverse') {
-            reasons.push('他不排斥反转线');
+            reasons.push('他偏好剧情平稳的角色');
           }
         }
       }
@@ -102,7 +102,7 @@ export const calculateMatchScore = (
       const keywordAttrs = keywordAttributeMap[keyword.keyword] || keyword.attributes;
       if (!keywordAttrs.includes('killer')) {
         score += 3;
-        reasons.push('避免了凶手位，符合他怕当凶手的需求');
+        reasons.push('这个角色压力较小，符合他的需求');
       } else {
         score -= 10;
       }
@@ -118,11 +118,11 @@ export const calculateMatchScore = (
   });
 
   if (planType === 'balance') {
-    const assignedCount = allPlayers.filter(p => p.submitted).length;
+    const assignedCount = allPlayers.filter(p => p.hasSubmitted).length;
     const avgScore = assignedCount > 0 ? score / assignedCount : 0;
     score = score - Math.abs(avgScore - score) * 0.5;
     
-    const hasHighScore = allPlayers.some(p => p.id !== player.id && p.submitted);
+    const hasHighScore = allPlayers.some(p => p.id !== player.id && p.hasSubmitted);
     if (hasHighScore) {
       score += 1;
     }
@@ -147,10 +147,13 @@ export const calculateMatchScore = (
 };
 
 export const generateAssignmentPlans = (game: Game): Plan[] => {
-  const submittedPlayers = game.players.filter(p => p.submitted);
+  const submittedPlayers = game.players.filter(p => p.hasSubmitted);
   const keywords = game.roleKeywords;
 
-  if (submittedPlayers.length === 0 || keywords.length === 0) {
+  const isFull = game.players.length >= game.playerCount;
+  const allSubmitted = submittedPlayers.length >= game.players.length;
+
+  if (!isFull || !allSubmitted || submittedPlayers.length === 0 || keywords.length === 0) {
     return [];
   }
 
@@ -250,7 +253,7 @@ export const getPlayerTagLabel = (tag: string): string => {
     newbie: '新手',
     hardcore: '硬核玩家',
     emotion: '情感本爱好者',
-    noKiller: '怕当凶手',
+    noKiller: '怕压力大',
     support: '想尝试边缘位'
   };
   return labels[tag] || tag;

@@ -135,3 +135,5 @@ export const saveUserName = (name: string): void => {
     console.error('[Storage] saveUserName error:', e);
   }
 };
+
+export const setUserName = saveUserName;

@@ -1,17 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Input, Button, ScrollView } from '@tarojs/components';
-import Taro, { useDidShow, usePullDownRefresh } from '@tarojs/taro';
+import Taro, { useDidShow, useRouter, usePullDownRefresh } from '@tarojs/taro';
 import { useGame } from '@/store/GameContext';
 import GameCard from '@/components/GameCard';
-import { getGameByShareCode, getUserName, getUserId } from '@/utils/storage';
+import { getUserName, getUserId, setUserName, generateId } from '@/utils/storage';
+import { getGameFromCloud } from '@/services/cloudService';
 import type { Game } from '@/types/game';
 import styles from './index.module.scss';
 
 const HomePage: React.FC = () => {
-  const { games, loading, refreshGames, addGame, updateGame } = useGame();
+  const router = useRouter();
+  const { games, loading, refreshGames, addGame, updateGame, joinGameByCode } = useGame();
   const [inviteCode, setInviteCode] = useState('');
   const [activeGames, setActiveGames] = useState<Game[]>([]);
   const [completedGames, setCompletedGames] = useState<Game[]>([]);
+  const [showNameModal, setShowNameModal] = useState(false);
+  const [tempName, setTempName] = useState('');
+  const [pendingCode, setPendingCode] = useState('');
+
+  useEffect(() => {
+    checkInviteParam();
+  }, []);
 
   useEffect(() => {
     filterGames();
@@ -28,6 +37,18 @@ const HomePage: React.FC = () => {
     }, 1000);
   });
 
+  const checkInviteParam = () => {
+    const inviteParam = router.params.invite as string;
+    if (inviteParam) {
+      const code = inviteParam.toUpperCase().trim();
+      setInviteCode(code);
+      const cloudGame = getGameFromCloud(code);
+      if (cloudGame) {
+        handleJoinWithCheck(code);
+      }
+    }
+  };
+
   const filterGames = () => {
     const active = games.filter(g => g.status !== 'completed');
     const completed = games.filter(g => g.status === 'completed');
@@ -35,57 +56,64 @@ const HomePage: React.FC = () => {
     setCompletedGames(completed);
   };
 
+  const handleJoinWithCheck = (code: string) => {
+    const cloudGame = getGameFromCloud(code);
+    if (!cloudGame) {
+      Taro.showToast({ title: '邀请码无效', icon: 'none' });
+      return;
+    }
+
+    const currentName = getUserName();
+    if (!currentName || currentName === '玩家') {
+      setPendingCode(code);
+      setShowNameModal(true);
+      return;
+    }
+
+    doJoin(code, currentName);
+  };
+
+  const doJoin = (code: string, playerName: string) => {
+    const joinedGame = joinGameByCode(code, playerName);
+    if (joinedGame) {
+      setInviteCode('');
+      setTimeout(() => {
+        Taro.navigateTo({ url: `/pages/game-detail/index?id=${joinedGame.id}` });
+      }, 500);
+    }
+  };
+
   const handleJoinByCode = () => {
     if (!inviteCode.trim()) {
       Taro.showToast({ title: '请输入邀请码', icon: 'none' });
       return;
     }
+    handleJoinWithCheck(inviteCode.trim().toUpperCase());
+  };
 
-    const game = getGameByShareCode(inviteCode.trim());
-    if (!game) {
-      Taro.showToast({ title: '未找到该车次', icon: 'none' });
+  const handleConfirmName = () => {
+    if (!tempName.trim()) {
+      Taro.showToast({ title: '请输入昵称', icon: 'none' });
       return;
     }
-
-    const currentUserId = getUserId();
-    const currentUserName = getUserName();
+    const name = tempName.trim();
+    setUserName(name);
+    setShowNameModal(false);
     
-    const isAlreadyJoined = game.players.some(p => p.id === currentUserId);
-    
-    if (isAlreadyJoined) {
-      Taro.navigateTo({ url: `/pages/game-detail/index?id=${game.id}` });
-      return;
+    if (pendingCode) {
+      doJoin(pendingCode, name);
+      setPendingCode('');
     }
-
-    if (game.players.length >= game.playerCount) {
-      Taro.showToast({ title: '该车次已满员', icon: 'none' });
-      return;
-    }
-
-    const updatedGame: Game = {
-      ...game,
-      status: game.players.length + 1 >= game.playerCount ? 'submitting' : game.status,
-      players: [
-        ...game.players,
-        {
-          id: currentUserId,
-          name: currentUserName,
-          avatar: `https://picsum.photos/id/${Math.floor(Math.random() * 100)}/200/200`,
-          tags: [],
-          keywordRanking: [],
-          submitted: false,
-          joinedAt: Date.now()
-        }
-      ]
-    };
-
-    updateGame(updatedGame);
-    Taro.showToast({ title: '加入成功', icon: 'success' });
-    setInviteCode('');
-    Taro.navigateTo({ url: `/pages/game-detail/index?id=${game.id}` });
+    setTempName('');
   };
 
   const handleCreateGame = () => {
+    const currentName = getUserName();
+    if (!currentName || currentName === '玩家') {
+      setPendingCode('');
+      setShowNameModal(true);
+      return;
+    }
     console.log('[Home] Navigate to create game');
     Taro.navigateTo({ url: '/pages/create-game/index' });
   };
@@ -103,7 +131,7 @@ const HomePage: React.FC = () => {
           <Input
             className={styles.searchInput}
             placeholder="输入邀请码加入"
-            placeholderClass={styles.searchInput}
+            placeholderClass={styles.searchPlaceholder}
             value={inviteCode}
             onInput={e => setInviteCode(e.detail.value.toUpperCase())}
             maxLength={6}
@@ -156,6 +184,39 @@ const HomePage: React.FC = () => {
             </View>
           )}
         </>
+      )}
+
+      {showNameModal && (
+        <View className={styles.modalOverlay} onClick={() => setShowNameModal(false)}>
+          <View className={styles.modalContent} onClick={e => e.stopPropagation()}>
+            <Text className={styles.modalTitle}>设置你的昵称</Text>
+            <Text className={styles.modalDesc}>请输入你在游戏中使用的昵称</Text>
+            <Input
+              className={styles.modalInput}
+              placeholder="请输入昵称"
+              placeholderClass={styles.searchPlaceholder}
+              value={tempName}
+              onInput={e => setTempName(e.detail.value)}
+              maxLength={10}
+              focus
+            />
+            <View className={styles.modalActions}>
+              <Button 
+                className={styles.modalCancelBtn} 
+                onClick={() => {
+                  setShowNameModal(false);
+                  setPendingCode('');
+                  setTempName('');
+                }}
+              >
+                取消
+              </Button>
+              <Button className={styles.modalConfirmBtn} onClick={handleConfirmName}>
+                确认
+              </Button>
+            </View>
+          </View>
+        </View>
       )}
     </ScrollView>
   );

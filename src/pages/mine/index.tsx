@@ -68,7 +68,7 @@ const MinePage: React.FC = () => {
       return '发起人';
     }
     const player = game.players.find(p => p.id === currentUserId);
-    return player?.submitted ? '已提交' : '待提交';
+    return player?.hasSubmitted ? '已提交' : '待提交';
   };
 
   return (

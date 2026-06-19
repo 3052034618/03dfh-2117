@@ -27,8 +27,8 @@ export const defaultRoleKeywords: RoleKeyword[] = [
   },
   {
     id: 'kw5',
-    keyword: '反转位',
-    description: '有出人意料的反转',
+    keyword: '剧情起伏',
+    description: '有出人意料的剧情转折',
     attributes: ['hasReverse', 'killer']
   },
   {
@@ -39,14 +39,14 @@ export const defaultRoleKeywords: RoleKeyword[] = [
   },
   {
     id: 'kw7',
-    keyword: '凶手位',
-    description: '剧本中的凶手角色',
+    keyword: '压力担当',
+    description: '需要隐藏重要信息，心理压力较大',
     attributes: ['killer', 'hasReverse', 'central']
   },
   {
     id: 'kw8',
-    keyword: '侦探位',
-    description: '带领大家推理的角色',
+    keyword: '逻辑担当',
+    description: '需要理清线索、带领思路的角色',
     attributes: ['rational', 'central', 'noReverse']
   },
   {
@@ -96,9 +96,9 @@ export const playerTags: PlayerTag[] = [
   },
   {
     key: 'noKiller',
-    label: '怕当凶手',
+    label: '怕压力大',
     color: '#FF7675',
-    description: '不希望拿到凶手角色'
+    description: '不希望拿到需要隐藏信息的角色'
   },
   {
     key: 'support',

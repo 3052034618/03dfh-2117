@@ -19,7 +19,7 @@ const statusConfig = {
 
 const GameCard: React.FC<GameCardProps> = ({ game, onClick }) => {
   const status = statusConfig[game.status];
-  const submittedCount = game.players.filter(p => p.submitted).length;
+  const submittedCount = game.players.filter(p => p.hasSubmitted).length;
 
   const handleClick = () => {
     if (onClick) {
@@ -77,7 +77,7 @@ const GameCard: React.FC<GameCardProps> = ({ game, onClick }) => {
         {game.players.slice(0, 5).map(player => (
           <View key={player.id} className={styles.playerItem}>
             <Text
-              className={classnames(styles.playerDot, player.submitted && styles.submitted)}
+              className={classnames(styles.playerDot, player.hasSubmitted && styles.submitted)}
             />
             <Text className={styles.playerName}>{player.name}</Text>
           </View>

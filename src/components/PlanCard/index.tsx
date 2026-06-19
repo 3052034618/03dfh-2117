@@ -10,11 +10,13 @@ interface PlanCardProps {
   game: Game;
   active?: boolean;
   onClick?: () => void;
+  highlightPlayerIds?: string[];
 }
 
-const PlanCard: React.FC<PlanCardProps> = ({ plan, game, active, onClick }) => {
+const PlanCard: React.FC<PlanCardProps> = ({ plan, game, active, onClick, highlightPlayerIds = [] }) => {
   const getKeywordById = (id: string) => game.roleKeywords.find(k => k.id === id);
   const getPlayerById = (id: string) => game.players.find(p => p.id === id);
+  const isHighlighted = (playerId: string) => highlightPlayerIds.includes(playerId);
 
   return (
     <View
@@ -42,20 +44,33 @@ const PlanCard: React.FC<PlanCardProps> = ({ plan, game, active, onClick }) => {
           const player = getPlayerById(assignment.playerId);
           if (!keyword || !player) return null;
 
+          const highlighted = isHighlighted(player.id);
+
           return (
-            <View key={assignment.roleKeywordId} className={styles.assignmentItem}>
+            <View 
+              key={assignment.roleKeywordId} 
+              className={classnames(
+                styles.assignmentItem,
+                highlighted && styles.updatedItem
+              )}
+            >
               <View className={styles.assignmentHeader}>
                 <View
-                  className={styles.keywordBadge}
+                  className={classnames(styles.keywordBadge, highlighted && styles.updatedBadge)}
                   style={{ borderLeftColor: plan.color }}
                 >
                   <Text className={styles.keywordName}>{keyword.keyword}</Text>
+                  {highlighted && (
+                    <Text className={styles.updatedMark}>🔄</Text>
+                  )}
                 </View>
                 <View className={styles.arrow}>
                   <Text className={styles.arrowText}>→</Text>
                 </View>
                 <View className={styles.playerInfo}>
-                  <Text className={styles.playerName}>{player.name}</Text>
+                  <Text className={classnames(styles.playerName, highlighted && styles.updatedName)}>
+                    {player.name}
+                  </Text>
                 </View>
               </View>
 

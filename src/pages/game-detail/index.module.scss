@@ -43,6 +43,10 @@
   font-size: $font-size-md;
   color: $color-text-white;
   font-weight: $font-weight-medium;
+
+  &.full {
+    color: #55EFC4;
+  }
 }
 
 .shareSection {
@@ -102,6 +106,156 @@
   background-color: $color-bg-card;
   padding: 4rpx 16rpx;
   border-radius: $radius-round;
+}
+
+.sectionTip {
+  font-size: $font-size-xs;
+  color: $color-primary;
+  background-color: rgba(108, 92, 231, 0.08);
+  padding: 8rpx 16rpx;
+  border-radius: $radius-xs;
+  font-size: $font-size-xs;
+}
+
+.progressCard {
+  background-color: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  box-shadow: $shadow-card;
+}
+
+.progressInfo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-md;
+}
+
+.progressText {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-bold;
+  color: $color-text-primary;
+}
+
+.progressStatus {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  padding: 4rpx 16rpx;
+  border-radius: $radius-round;
+
+  &.done {
+    background-color: rgba(0, 184, 148, 0.1);
+    color: $color-success;
+  }
+
+  &.waiting {
+    background-color: rgba(253, 121, 168, 0.1);
+    color: #FD79A8;
+  }
+
+  &.recruiting {
+    background-color: rgba(108, 92, 231, 0.1);
+    color: $color-primary;
+  }
+}
+
+.progressBar {
+  width: 100%;
+  height: 16rpx;
+  background-color: $color-bg-page;
+  border-radius: $radius-round;
+  overflow: hidden;
+  margin-bottom: $spacing-sm;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: $radius-round;
+  transition: width 0.3s ease;
+
+  &.normalFill {
+    background: linear-gradient(90deg, $color-primary 0%, $color-primary-light 100%);
+  }
+
+  &.doneFill {
+    background: linear-gradient(90deg, $color-success 0%, #00D9A5 100%);
+  }
+}
+
+.progressTip {
+  font-size: $font-size-sm;
+  color: $color-text-secondary;
+  line-height: 1.5;
+}
+
+.playerClickable {
+  transition: all $transition-base;
+  cursor: pointer;
+
+  &:active {
+    transform: scale(0.98);
+    background-color: rgba(108, 92, 231, 0.05);
+  }
+}
+
+.replacedBadge {
+  padding: 2rpx 12rpx;
+  background-color: rgba(253, 121, 168, 0.1);
+  border-radius: $radius-xs;
+  margin-left: 8rpx;
+}
+
+.replacedText {
+  font-size: $font-size-xs;
+  color: #FD79A8;
+  font-weight: $font-weight-medium;
+}
+
+.originalName {
+  font-size: $font-size-xs;
+  color: $color-text-tertiary;
+  margin-bottom: 4rpx;
+}
+
+.replaceActions {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+  margin-left: $spacing-sm;
+}
+
+.replaceBtn {
+  @include button-reset;
+  height: 52rpx;
+  padding: 0 16rpx;
+  background-color: rgba(108, 92, 231, 0.1);
+  border-radius: $radius-xs;
+  color: $color-primary;
+  font-size: 22rpx;
+  font-weight: $font-weight-medium;
+  transition: all $transition-base;
+
+  &:active {
+    background-color: rgba(108, 92, 231, 0.2);
+    transform: scale(0.95);
+  }
+}
+
+.removeBtnSmall {
+  @include button-reset;
+  height: 52rpx;
+  padding: 0 16rpx;
+  background-color: rgba(255, 118, 117, 0.1);
+  border-radius: $radius-xs;
+  color: $color-error;
+  font-size: 22rpx;
+  font-weight: $font-weight-medium;
+  transition: all $transition-base;
+
+  &:active {
+    background-color: rgba(255, 118, 117, 0.2);
+    transform: scale(0.95);
+  }
 }
 
 .playerList {
