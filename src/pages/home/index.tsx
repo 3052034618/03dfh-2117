@@ -64,12 +64,12 @@ const HomePage: React.FC = () => {
   };
 
   const doJoin = async (code: string, playerName: string) => {
-    const joinedGame = await joinGameByCode(code, playerName);
+    const { game: joinedGame } = await joinGameByCode(code, playerName);
     if (joinedGame) {
       setInviteCode('');
       setTimeout(() => {
         Taro.navigateTo({ url: `/pages/game-detail/index?id=${joinedGame.id}` });
-      }, 500);
+      }, 600);
     }
   };
 

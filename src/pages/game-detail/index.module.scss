@@ -68,18 +68,38 @@
 
 .shareBtn {
   @include button-reset;
-  height: $button-height-md;
-  padding: 0 $spacing-lg;
-  background-color: rgba(255, 255, 255, 0.2);
+  height: 68rpx;
+  padding: 0 $spacing-md;
+  background: linear-gradient(135deg, $color-text-white 0%, #F5F3FF 100%);
   border-radius: $radius-button;
-  color: $color-text-white;
-  font-size: $font-size-sm;
-  font-weight: $font-weight-medium;
+  color: $color-primary;
+  font-size: 24rpx;
+  font-weight: $font-weight-semibold;
   transition: all $transition-base;
+  min-width: 160rpx;
 
   &:active {
-    transform: scale(0.96);
-    background-color: rgba(255, 255, 255, 0.3);
+    transform: scale(0.95);
+    opacity: 0.85;
+  }
+}
+
+.refreshSyncBtn {
+  @include button-reset;
+  height: 52rpx;
+  padding: 0 $spacing-md;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: $radius-sm;
+  color: $color-text-white;
+  font-size: 22rpx;
+  font-weight: $font-weight-medium;
+  border: 2rpx solid rgba(255, 255, 255, 0.4);
+  transition: all $transition-base;
+  min-width: 160rpx;
+
+  &:active {
+    transform: scale(0.95);
+    background-color: rgba(255, 255, 255, 0.35);
   }
 }
 

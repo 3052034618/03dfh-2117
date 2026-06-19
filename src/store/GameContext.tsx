@@ -7,21 +7,24 @@ import {
   saveGameToCloud,
   getGameFromCloud,
   saveResultToCloud,
-  getResultFromCloud,
   refreshGameFromCloud,
-  saveGameToLocalCache
+  formatSyncStatus
 } from '@/services/cloudService';
 
 interface GameContextType {
   games: Game[];
   loading: boolean;
   refreshGames: () => void;
-  addGame: (game: Game) => void;
-  updateGame: (game: Game) => void;
+  addGame: (game: Game) => Promise<{ online: boolean }>;
+  updateGame: (game: Game) => Promise<{ online: boolean }>;
   getGame: (id: string) => Game | undefined;
   getResult: (gameId: string) => AssignmentResult | undefined;
   saveResult: (result: AssignmentResult) => void;
-  joinGameByCode: (shareCode: string, playerName: string) => Promise<Game | null>;
+  joinGameByCode: (shareCode: string, playerName: string) => Promise<{
+    game: Game | null;
+    online: boolean;
+    fromCache: boolean;
+  }>;
   refreshGameFromCloudSync: (gameId: string, shareCode: string) => Promise<Game | null>;
 }
 
@@ -41,11 +44,9 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       let storedGames = getGames();
       
       if (storedGames.length === 0) {
-        console.log('[GameContext] No stored games, using mock data');
         storedGames = mockGames;
         storedGames.forEach(game => {
           saveGame(game);
-          saveGameToCloud(game);
         });
       }
       
@@ -62,27 +63,36 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     loadGames();
   };
 
-  const addGame = (game: Game) => {
+  const addGame = async (game: Game): Promise<{ online: boolean }> => {
     try {
       saveGame(game);
-      saveGameToLocalCache(game);
-      saveGameToCloud(game);
       setGames(prev => [game, ...prev]);
-      console.log('[GameContext] Game added and synced:', game.id, game.shareCode);
+      
+      const { online } = await saveGameToCloud(game);
+      
+      if (online) {
+        console.log('[GameContext] Game added and synced ONLINE:', game.shareCode);
+      } else {
+        console.log('[GameContext] Game added to LOCAL only:', game.shareCode);
+      }
+      
+      return { online };
     } catch (e) {
       console.error('[GameContext] addGame error:', e);
+      return { online: false };
     }
   };
 
-  const updateGame = (game: Game) => {
+  const updateGame = async (game: Game): Promise<{ online: boolean }> => {
     try {
       saveGame(game);
-      saveGameToLocalCache(game);
-      saveGameToCloud(game);
       setGames(prev => prev.map(g => (g.id === game.id ? game : g)));
-      console.log('[GameContext] Game updated and synced:', game.id, game.shareCode);
+      
+      const { online } = await saveGameToCloud(game);
+      return { online };
     } catch (e) {
       console.error('[GameContext] updateGame error:', e);
+      return { online: false };
     }
   };
 
@@ -103,22 +113,36 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (game) {
         saveResultToCloud(game.shareCode, result);
       }
-      console.log('[GameContext] Result saved and synced to cloud:', result.gameId);
     } catch (e) {
       console.error('[GameContext] saveResult error:', e);
     }
   };
 
-  const joinGameByCode = async (shareCode: string, playerName: string): Promise<Game | null> => {
+  const joinGameByCode = async (shareCode: string, playerName: string): Promise<{
+    game: Game | null;
+    online: boolean;
+    fromCache: boolean;
+  }> => {
     try {
-      const cloudGame = await getGameFromCloud(shareCode);
+      const { game: cloudGame, online, fromCache } = await getGameFromCloud(shareCode);
+      
       if (!cloudGame) {
-        Taro.showToast({ title: '邀请码无效', icon: 'none' });
-        return null;
+        if (online) {
+          Taro.showToast({ title: '邀请码无效或车次未创建', icon: 'none', duration: 2000 });
+        } else if (fromCache) {
+          Taro.showToast({ title: '暂无网络，无法找到车次', icon: 'none', duration: 2000 });
+        } else {
+          Taro.showToast({ title: '邀请码无效', icon: 'none' });
+        }
+        return { game: null, online, fromCache };
       }
 
       const localExisting = games.find(g => g.id === cloudGame.id);
-      const nowJoined = localExisting || cloudGame;
+      const nowJoined = localExisting || { ...cloudGame };
+
+      if (!localExisting) {
+        saveGame(nowJoined);
+      }
 
       const emptySlot = nowJoined.players.find(
         p => p.isReplaced && !p.hasSubmitted
@@ -126,32 +150,39 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       const playerExists = nowJoined.players.some(p => p.name === playerName);
 
       if (emptySlot && !playerExists) {
-        const userId = generateId();
-        emptySlot.id = userId;
+        emptySlot.id = generateId();
         emptySlot.name = playerName;
         emptySlot.isReplaced = false;
         emptySlot.originalName = undefined;
         emptySlot.tags = [];
         emptySlot.keywordRanking = [];
         emptySlot.hasSubmitted = false;
+        emptySlot.joinedAt = Date.now();
         emptySlot.avatar = `https://picsum.photos/id/${Math.floor(Math.random() * 100)}/200/200`;
         
-        updateGame(nowJoined);
-        Taro.showToast({ title: '已认领空位，请选择偏好', icon: 'success' });
+        await updateGame(nowJoined);
+        Taro.showToast({ 
+          title: online ? '已认领空位！请选择偏好' : '已认领（本机）', 
+          icon: 'success', 
+          duration: 1500 
+        });
         
         if (!localExisting) {
           setGames(prev => [nowJoined, ...prev]);
         }
-        return nowJoined;
+        return { game: nowJoined, online, fromCache };
       }
 
       if (playerExists) {
-        Taro.showToast({ title: '你已在车中', icon: 'none' });
+        const status = formatSyncStatus(online);
+        Taro.showToast({ 
+          title: '你已在车中', 
+          icon: 'none' 
+        });
         if (!localExisting) {
-          saveGame(nowJoined);
           setGames(prev => [nowJoined, ...prev]);
         }
-        return nowJoined;
+        return { game: nowJoined, online, fromCache };
       }
 
       if (nowJoined.players.length < nowJoined.playerCount) {
@@ -166,22 +197,26 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           isReplaced: false
         };
         nowJoined.players.push(newPlayer);
-        updateGame(nowJoined);
-        Taro.showToast({ title: '加入成功', icon: 'success' });
+        await updateGame(nowJoined);
+        const status = formatSyncStatus(online);
+        Taro.showToast({ 
+          title: online ? '加入成功！' : '已加入（本机）', 
+          icon: 'success' 
+        });
       } else {
         Taro.showToast({ title: '车已满员', icon: 'none' });
-        return null;
+        return { game: null, online, fromCache };
       }
 
       if (!localExisting) {
         setGames(prev => [nowJoined, ...prev]);
       }
 
-      return nowJoined;
+      return { game: nowJoined, online, fromCache };
     } catch (e) {
       console.error('[GameContext] joinGameByCode error:', e);
-      Taro.showToast({ title: '加入失败', icon: 'none' });
-      return null;
+      Taro.showToast({ title: '加入失败，请重试', icon: 'none' });
+      return { game: null, online: false, fromCache: false };
     }
   };
 
@@ -191,12 +226,12 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (cloudGame) {
         saveGame(cloudGame);
         setGames(prev => prev.map(g => (g.id === cloudGame.id ? cloudGame : g)));
-        console.log('[GameContext] Game refreshed from cloud:', shareCode);
+        console.log('[GameContext] Refreshed from cloud:', shareCode);
         return cloudGame;
       }
       return null;
     } catch (e) {
-      console.error('[GameContext] refreshGameFromCloudSync error:', e);
+      console.error('[GameContext] refresh error:', e);
       return null;
     }
   };

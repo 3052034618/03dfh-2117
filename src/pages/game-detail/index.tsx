@@ -9,7 +9,7 @@ import KeywordSort from '@/components/KeywordSort';
 import { playerTags } from '@/data/roleKeywords';
 import { getUserId, generateId, getUserName } from '@/utils/storage';
 import { generateAssignmentPlans, incrementalRecalculate } from '@/utils/algorithm';
-import { shareGameToFriend } from '@/services/cloudService';
+import { shareGameToFriend, checkSyncHealth, setSyncBaseUrl, getSyncBaseUrl } from '@/services/cloudService';
 import type { Game, Player, PlayerTagType } from '@/types/game';
 import styles from './index.module.scss';
 
@@ -23,6 +23,7 @@ const GameDetailPage: React.FC = () => {
   const [keywordRanking, setKeywordRanking] = useState<string[]>([]);
   const [isCreator, setIsCreator] = useState(false);
   const [replacePlayerId, setReplacePlayerId] = useState<string | null>(null);
+  const [syncOnline, setSyncOnline] = useState<boolean | null>(null);
 
   const gameId = router.params.id as string;
 
@@ -33,6 +34,14 @@ const GameDetailPage: React.FC = () => {
   useDidShow(async () => {
     refreshGames();
     loadGame();
+    
+    try {
+      const health = await checkSyncHealth();
+      setSyncOnline(health === 'online');
+    } catch {
+      setSyncOnline(false);
+    }
+    
     if (game?.shareCode) {
       const refreshed = await refreshGameFromCloudSync(game.id, game.shareCode);
       if (refreshed) {
@@ -349,13 +358,82 @@ const GameDetailPage: React.FC = () => {
         </View>
 
         <View className={styles.shareSection}>
-          <View>
-            <Text className={styles.infoLabel}>邀请码</Text>
-            <Text className={styles.shareCode}>{game.shareCode}</Text>
+          <View style={{ flex: 1 }}>
+            <View style={{ display: 'flex', alignItems: 'center', marginBottom: '8rpx' }}>
+              <Text className={styles.infoLabel}>邀请码</Text>
+              {syncOnline === true && (
+                <View style={{ marginLeft: '16rpx', display: 'flex', alignItems: 'center' }}>
+                  <View style={{
+                    width: '12rpx', height: '12rpx', borderRadius: '50%',
+                    backgroundColor: '#00B894', marginRight: '6rpx'
+                  }} />
+                  <Text style={{ fontSize: '22rpx', color: '#00B894' }}>可跨设备</Text>
+                </View>
+              )}
+              {syncOnline === false && (
+                <View style={{ marginLeft: '16rpx', display: 'flex', alignItems: 'center' }}>
+                  <View style={{
+                    width: '12rpx', height: '12rpx', borderRadius: '50%',
+                    backgroundColor: '#F39C12', marginRight: '6rpx'
+                  }} />
+                  <Text style={{ fontSize: '22rpx', color: '#F39C12' }}>本机模式</Text>
+                </View>
+              )}
+            </View>
+            <View style={{ display: 'flex', alignItems: 'center', gap: '16rpx' }}>
+              <Text className={styles.shareCode} selectable>{game.shareCode}</Text>
+              <Text
+                style={{
+                  fontSize: '22rpx',
+                  color: '#6C5CE7',
+                  padding: '4rpx 12rpx',
+                  backgroundColor: 'rgba(108, 92, 231, 0.1)',
+                  borderRadius: '8rpx'
+                }}
+                onClick={async () => {
+                  const res = await Taro.showModal({
+                    title: '同步服务地址',
+                    editable: true,
+                    placeholderText: 'http://你的服务器IP:3456/api',
+                    content: getSyncBaseUrl()
+                  });
+                  if (res.confirm && res.content?.trim()) {
+                    const url = res.content.trim();
+                    setSyncBaseUrl(url);
+                    Taro.showToast({ title: '已保存，将自动检测', icon: 'success' });
+                  }
+                }}
+              >
+                ⚙️ 服务器
+              </Text>
+            </View>
           </View>
-          <Button className={styles.shareBtn} onClick={handleShare}>
-            分享邀请
-          </Button>
+          <View style={{ display: 'flex', flexDirection: 'column', gap: '12rpx' }}>
+            <Button className={styles.shareBtn} onClick={handleShare}>
+              📤 分享邀请
+            </Button>
+            <Button
+              className={styles.refreshSyncBtn}
+              onClick={async () => {
+                const refreshed = await refreshGameFromCloudSync(game!.id, game!.shareCode);
+                if (refreshed) {
+                  setGame(refreshed);
+                  const userId = getUserId();
+                  const p = refreshed.players.find(pl => pl.id === userId);
+                  if (p) {
+                    setCurrentPlayer(p);
+                    setSelectedTags([...p.tags]);
+                    setKeywordRanking([...p.keywordRanking]);
+                  }
+                  Taro.showToast({ title: '已刷新', icon: 'success' });
+                } else {
+                  Taro.showToast({ title: '暂无新数据', icon: 'none' });
+                }
+              }}
+            >
+              🔄 同步
+            </Button>
+          </View>
         </View>
       </View>
 

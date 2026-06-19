@@ -88,7 +88,7 @@ const CreateGamePage: React.FC = () => {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!scriptName.trim()) {
       Taro.showToast({ title: '请输入剧本名', icon: 'none' });
       return;
@@ -135,15 +135,24 @@ const CreateGamePage: React.FC = () => {
       shareCode: generateShareCode()
     };
 
-    addGame(newGame);
+    const { online } = await addGame(newGame);
     
-    console.log('[CreateGame] Game created:', newGame.id);
-    
-    Taro.showToast({ title: '创建成功', icon: 'success' });
+    console.log('[CreateGame] Game created:', newGame.id, 'online:', online);
+
+    if (online) {
+      Taro.showToast({ title: '创建成功，可跨设备同步', icon: 'success', duration: 1500 });
+    } else {
+      Taro.showModal({
+        title: '创建成功',
+        content: '当前网络无法连接同步服务器。\n\n✅ 车已在本机保存可使用\n⚠️ 如需跨设备邀请好友，需要同步服务器在线',
+        confirmText: '知道了',
+        showCancel: false
+      });
+    }
     
     setTimeout(() => {
       Taro.redirectTo({ url: `/pages/game-detail/index?id=${newGame.id}` });
-    }, 500);
+    }, 1200);
   };
 
   const canSubmit = scriptName.trim() && selectedKeywords.length === playerCount;
