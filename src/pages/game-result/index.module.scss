@@ -1,0 +1,241 @@
+@use '@/styles/variables.scss' as *;
+
+.page {
+  min-height: 100vh;
+  background-color: $color-bg-page;
+  padding: 0 $page-padding;
+  padding-bottom: 200rpx;
+}
+
+.header {
+  padding: $spacing-xl 0;
+  text-align: center;
+}
+
+.title {
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+  color: $color-text-primary;
+  margin-bottom: $spacing-xs;
+}
+
+.subtitle {
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
+}
+
+.planTabs {
+  display: flex;
+  background-color: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-xs;
+  margin-bottom: $spacing-xl;
+  box-shadow: $shadow-card;
+}
+
+.planTab {
+  flex: 1;
+  padding: $spacing-md $spacing-sm;
+  border-radius: $radius-md;
+  text-align: center;
+  transition: all $transition-base;
+
+  &:active {
+    transform: scale(0.96);
+  }
+}
+
+.planTabName {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  margin-bottom: 4rpx;
+  display: block;
+}
+
+.planTabScore {
+  font-size: $font-size-xs;
+  opacity: 0.7;
+}
+
+.planCardWrapper {
+  margin-bottom: $spacing-xl;
+}
+
+.planInfo {
+  background-color: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  margin-bottom: $spacing-md;
+  box-shadow: $shadow-card;
+}
+
+.planName {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  margin-bottom: $spacing-xs;
+}
+
+.planDesc {
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
+}
+
+.resultList {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+.resultItem {
+  background-color: $color-bg-card;
+  border-radius: $radius-lg;
+  padding: $spacing-lg;
+  box-shadow: $shadow-card;
+}
+
+.resultHeader {
+  display: flex;
+  align-items: center;
+  margin-bottom: $spacing-md;
+}
+
+.keywordBadge {
+  padding: $spacing-xs $spacing-md;
+  border-radius: $radius-sm;
+  margin-right: $spacing-sm;
+  border-left: 6rpx solid;
+}
+
+.keywordText {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.arrow {
+  font-size: $font-size-lg;
+  color: $color-text-tertiary;
+  margin-right: $spacing-sm;
+}
+
+.playerInfo {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.playerAvatar {
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: $radius-round;
+  margin-right: $spacing-sm;
+}
+
+.playerName {
+  font-size: $font-size-md;
+  font-weight: $font-weight-medium;
+  color: $color-text-primary;
+}
+
+.reasonsSection {
+  padding-top: $spacing-md;
+  border-top: 1rpx solid $color-divider;
+}
+
+.reasonsTitle {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: $color-text-secondary;
+  margin-bottom: $spacing-sm;
+}
+
+.reasonsList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-xs;
+}
+
+.reasonItem {
+  display: flex;
+  align-items: center;
+  padding: 6rpx 16rpx;
+  border-radius: $radius-xs;
+  background-color: rgba(108, 92, 231, 0.08);
+  border: 1rpx solid rgba(108, 92, 231, 0.2);
+}
+
+.reasonIcon {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-bold;
+  margin-right: 8rpx;
+}
+
+.reasonText {
+  font-size: $font-size-xs;
+  color: $color-text-secondary;
+}
+
+.actionSection {
+  position: fixed;
+  bottom: $spacing-xl;
+  left: $page-padding;
+  right: $page-padding;
+  display: flex;
+  gap: $spacing-md;
+}
+
+.actionBtn {
+  @include button-reset;
+  flex: 1;
+  height: $button-height-lg;
+  border-radius: $radius-button;
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  transition: all $transition-base;
+
+  &:active {
+    transform: scale(0.98);
+  }
+}
+
+.secondaryBtn {
+  background-color: $color-bg-card;
+  color: $color-primary;
+  border: 2rpx solid $color-primary;
+}
+
+.primaryBtn {
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+  color: $color-text-white;
+  box-shadow: 0 8rpx 24rpx rgba(108, 92, 231, 0.3);
+}
+
+.recalculateBtn {
+  background: linear-gradient(135deg, $color-success 0%, #00D9A5 100%);
+  color: $color-text-white;
+  box-shadow: 0 8rpx 24rpx rgba(0, 184, 148, 0.3);
+}
+
+.emptyState {
+  padding: $spacing-xl * 2 $spacing-lg;
+  text-align: center;
+  background-color: $color-bg-card;
+  border-radius: $radius-lg;
+}
+
+.emptyIcon {
+  font-size: 80rpx;
+  margin-bottom: $spacing-md;
+  opacity: 0.5;
+}
+
+.emptyText {
+  font-size: $font-size-md;
+  color: $color-text-tertiary;
+  margin-bottom: $spacing-sm;
+}
+
+.emptyHint {
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
+}

@@ -1,0 +1,189 @@
+@use '@/styles/variables.scss' as *;
+
+.container {
+  width: 100%;
+}
+
+.section {
+  margin-bottom: $spacing-xl;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-md;
+}
+
+.sectionTitle {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+}
+
+.sectionHint {
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
+}
+
+.emptyHint {
+  padding: $spacing-xl;
+  background-color: $color-bg-page;
+  border-radius: $radius-md;
+  text-align: center;
+}
+
+.emptyText {
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
+}
+
+.rankedList {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+}
+
+.rankedItem {
+  display: flex;
+  align-items: center;
+  padding: $spacing-md;
+  background-color: $color-bg-card;
+  border-radius: $radius-md;
+  border: 2rpx solid $color-border;
+  transition: all $transition-base;
+
+  &.selected {
+    border-color: $color-primary;
+    background-color: rgba(108, 92, 231, 0.05);
+  }
+
+  &:active {
+    transform: scale(0.99);
+  }
+}
+
+.rankBadge {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: $radius-round;
+  background: linear-gradient(135deg, $color-primary 0%, $color-primary-light 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: $spacing-md;
+  flex-shrink: 0;
+}
+
+.rankText {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-bold;
+  color: $color-text-white;
+}
+
+.keywordInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.keywordText {
+  font-size: $font-size-md;
+  font-weight: $font-weight-semibold;
+  color: $color-text-primary;
+  display: block;
+  margin-bottom: 4rpx;
+}
+
+.keywordDesc {
+  font-size: $font-size-sm;
+  color: $color-text-tertiary;
+  display: block;
+  @include text-ellipsis;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: $spacing-xs;
+  margin-left: $spacing-sm;
+}
+
+.actionBtn {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: $radius-round;
+  background-color: $color-bg-page;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all $transition-base;
+
+  &:active {
+    transform: scale(0.9);
+    background-color: $color-primary-light;
+  }
+
+  &.disabled {
+    opacity: 0.3;
+    pointer-events: none;
+  }
+
+  &.removeBtn {
+    background-color: rgba(255, 118, 117, 0.1);
+
+    .actionIcon {
+      color: $color-error;
+    }
+  }
+}
+
+.actionIcon {
+  font-size: $font-size-lg;
+  color: $color-text-secondary;
+  font-weight: $font-weight-bold;
+  line-height: 1;
+}
+
+.unselectedList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+}
+
+.unselectedItem {
+  padding: $spacing-md;
+  background-color: $color-bg-card;
+  border-radius: $radius-md;
+  border: 2rpx dashed $color-border;
+  transition: all $transition-base;
+  min-width: 200rpx;
+  max-width: 320rpx;
+
+  &.selected {
+    border-color: $color-primary;
+    border-style: solid;
+    background-color: rgba(108, 92, 231, 0.05);
+  }
+
+  &:active {
+    transform: scale(0.96);
+  }
+}
+
+.insertHint {
+  position: fixed;
+  bottom: $spacing-xl;
+  left: $spacing-lg;
+  right: $spacing-lg;
+  padding: $spacing-md;
+  background-color: $color-primary;
+  border-radius: $radius-button;
+  box-shadow: $shadow-popup;
+  text-align: center;
+}
+
+.insertHintText {
+  font-size: $font-size-sm;
+  color: $color-text-white;
+  font-weight: $font-weight-medium;
+}

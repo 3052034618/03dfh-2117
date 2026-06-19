@@ -1,0 +1,23 @@
+@use '@/styles/variables.scss' as *;
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 6rpx 16rpx;
+  border-radius: $radius-xs;
+  border: 1rpx solid;
+  max-width: 100%;
+}
+
+.icon {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-bold;
+  margin-right: 8rpx;
+  flex-shrink: 0;
+}
+
+.text {
+  font-size: $font-size-xs;
+  color: $color-text-secondary;
+  @include text-ellipsis;
+}
