@@ -241,6 +241,64 @@
   }
 }
 
+.vacateBtn {
+  @include button-reset;
+  height: 52rpx;
+  padding: 0 16rpx;
+  background-color: rgba(253, 203, 110, 0.15);
+  border-radius: $radius-xs;
+  color: #E17055;
+  font-size: 22rpx;
+  font-weight: $font-weight-medium;
+  transition: all $transition-base;
+
+  &:active {
+    background-color: rgba(253, 203, 110, 0.25);
+    transform: scale(0.95);
+  }
+}
+
+.vacantItem {
+  border: 2rpx dashed #FDCB6E;
+  background-color: rgba(253, 203, 110, 0.05);
+}
+
+.vacantAvatar {
+  width: 80rpx;
+  height: 80rpx;
+  border-radius: $radius-round;
+  margin-right: $spacing-md;
+  flex-shrink: 0;
+  background-color: rgba(253, 203, 110, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vacantIcon {
+  font-size: 36rpx;
+  color: #E17055;
+  font-weight: $font-weight-bold;
+}
+
+.vacantName {
+  color: #E17055;
+  font-style: italic;
+}
+
+.vacantBadge {
+  padding: 2rpx 12rpx;
+  background-color: rgba(253, 203, 110, 0.15);
+  border-radius: $radius-xs;
+  margin-left: 8rpx;
+}
+
+.vacantBadgeText {
+  font-size: $font-size-xs;
+  color: #E17055;
+  font-weight: $font-weight-medium;
+}
+
 .removeBtnSmall {
   @include button-reset;
   height: 52rpx;

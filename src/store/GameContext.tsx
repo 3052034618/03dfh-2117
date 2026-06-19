@@ -8,8 +8,8 @@ import {
   getGameFromCloud,
   saveResultToCloud,
   getResultFromCloud,
-  deleteGameFromCloud,
-  refreshGameFromCloud
+  refreshGameFromCloud,
+  saveGameToLocalCache
 } from '@/services/cloudService';
 
 interface GameContextType {
@@ -21,8 +21,8 @@ interface GameContextType {
   getGame: (id: string) => Game | undefined;
   getResult: (gameId: string) => AssignmentResult | undefined;
   saveResult: (result: AssignmentResult) => void;
-  joinGameByCode: (shareCode: string, playerName: string) => Game | null;
-  refreshGameFromCloudSync: (gameId: string, shareCode: string) => Game | null;
+  joinGameByCode: (shareCode: string, playerName: string) => Promise<Game | null>;
+  refreshGameFromCloudSync: (gameId: string, shareCode: string) => Promise<Game | null>;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -65,9 +65,10 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const addGame = (game: Game) => {
     try {
       saveGame(game);
+      saveGameToLocalCache(game);
       saveGameToCloud(game);
       setGames(prev => [game, ...prev]);
-      console.log('[GameContext] Game added and synced to cloud:', game.id, game.shareCode);
+      console.log('[GameContext] Game added and synced:', game.id, game.shareCode);
     } catch (e) {
       console.error('[GameContext] addGame error:', e);
     }
@@ -76,9 +77,10 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const updateGame = (game: Game) => {
     try {
       saveGame(game);
+      saveGameToLocalCache(game);
       saveGameToCloud(game);
       setGames(prev => prev.map(g => (g.id === game.id ? game : g)));
-      console.log('[GameContext] Game updated and synced to cloud:', game.id, game.shareCode);
+      console.log('[GameContext] Game updated and synced:', game.id, game.shareCode);
     } catch (e) {
       console.error('[GameContext] updateGame error:', e);
     }
@@ -91,15 +93,6 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const getResult = (gameId: string): AssignmentResult | undefined => {
     const localResult = getGameResult(gameId);
     if (localResult) return localResult;
-    
-    const game = games.find(g => g.id === gameId);
-    if (game) {
-      const cloudResult = getResultFromCloud(game.shareCode);
-      if (cloudResult) {
-        saveGameResult(cloudResult);
-        return cloudResult;
-      }
-    }
     return undefined;
   };
 
@@ -116,34 +109,65 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const joinGameByCode = (shareCode: string, playerName: string): Game | null => {
+  const joinGameByCode = async (shareCode: string, playerName: string): Promise<Game | null> => {
     try {
-      const cloudGame = getGameFromCloud(shareCode);
+      const cloudGame = await getGameFromCloud(shareCode);
       if (!cloudGame) {
         Taro.showToast({ title: '邀请码无效', icon: 'none' });
         return null;
       }
 
       const localExisting = games.find(g => g.id === cloudGame.id);
-      
       const nowJoined = localExisting || cloudGame;
+
+      const emptySlot = nowJoined.players.find(
+        p => p.isReplaced && !p.hasSubmitted
+      );
       const playerExists = nowJoined.players.some(p => p.name === playerName);
-      
-      if (!playerExists && nowJoined.players.length < nowJoined.playerCount) {
+
+      if (emptySlot && !playerExists) {
+        const userId = generateId();
+        emptySlot.id = userId;
+        emptySlot.name = playerName;
+        emptySlot.isReplaced = false;
+        emptySlot.originalName = undefined;
+        emptySlot.tags = [];
+        emptySlot.keywordRanking = [];
+        emptySlot.hasSubmitted = false;
+        emptySlot.avatar = `https://picsum.photos/id/${Math.floor(Math.random() * 100)}/200/200`;
+        
+        updateGame(nowJoined);
+        Taro.showToast({ title: '已认领空位，请选择偏好', icon: 'success' });
+        
+        if (!localExisting) {
+          setGames(prev => [nowJoined, ...prev]);
+        }
+        return nowJoined;
+      }
+
+      if (playerExists) {
+        Taro.showToast({ title: '你已在车中', icon: 'none' });
+        if (!localExisting) {
+          saveGame(nowJoined);
+          setGames(prev => [nowJoined, ...prev]);
+        }
+        return nowJoined;
+      }
+
+      if (nowJoined.players.length < nowJoined.playerCount) {
         const newPlayer = {
           id: generateId(),
           name: playerName,
+          avatar: `https://picsum.photos/id/${Math.floor(Math.random() * 100)}/200/200`,
           tags: [],
           keywordRanking: [],
           hasSubmitted: false,
-          isCreator: false,
+          joinedAt: Date.now(),
           isReplaced: false
         };
         nowJoined.players.push(newPlayer);
         updateGame(nowJoined);
         Taro.showToast({ title: '加入成功', icon: 'success' });
-      } else if (playerExists) {
-        Taro.showToast({ title: '你已在车中', icon: 'none' });
       } else {
         Taro.showToast({ title: '车已满员', icon: 'none' });
         return null;
@@ -161,9 +185,9 @@ export const GameProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const refreshGameFromCloudSync = (gameId: string, shareCode: string): Game | null => {
+  const refreshGameFromCloudSync = async (gameId: string, shareCode: string): Promise<Game | null> => {
     try {
-      const cloudGame = refreshGameFromCloud(gameId, shareCode);
+      const cloudGame = await refreshGameFromCloud(gameId, shareCode);
       if (cloudGame) {
         saveGame(cloudGame);
         setGames(prev => prev.map(g => (g.id === cloudGame.id ? cloudGame : g)));

@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, Input, Button, ScrollView } from '@tarojs/components';
-import Taro, { useDidShow, useRouter, usePullDownRefresh } from '@tarojs/taro';
+import Taro, { useDidShow, useRouter, usePullDownRefresh, useShareAppMessage, useShareTimeline } from '@tarojs/taro';
 import { useGame } from '@/store/GameContext';
 import GameCard from '@/components/GameCard';
-import { getUserName, getUserId, setUserName, generateId } from '@/utils/storage';
-import { getGameFromCloud } from '@/services/cloudService';
+import { getUserName, getUserId, setUserName } from '@/utils/storage';
 import type { Game } from '@/types/game';
 import styles from './index.module.scss';
 
 const HomePage: React.FC = () => {
   const router = useRouter();
-  const { games, loading, refreshGames, addGame, updateGame, joinGameByCode } = useGame();
+  const { games, loading, refreshGames, joinGameByCode } = useGame();
   const [inviteCode, setInviteCode] = useState('');
   const [activeGames, setActiveGames] = useState<Game[]>([]);
   const [completedGames, setCompletedGames] = useState<Game[]>([]);
@@ -37,15 +36,12 @@ const HomePage: React.FC = () => {
     }, 1000);
   });
 
-  const checkInviteParam = () => {
+  const checkInviteParam = async () => {
     const inviteParam = router.params.invite as string;
     if (inviteParam) {
       const code = inviteParam.toUpperCase().trim();
       setInviteCode(code);
-      const cloudGame = getGameFromCloud(code);
-      if (cloudGame) {
-        handleJoinWithCheck(code);
-      }
+      handleJoinWithCheck(code);
     }
   };
 
@@ -56,13 +52,7 @@ const HomePage: React.FC = () => {
     setCompletedGames(completed);
   };
 
-  const handleJoinWithCheck = (code: string) => {
-    const cloudGame = getGameFromCloud(code);
-    if (!cloudGame) {
-      Taro.showToast({ title: '邀请码无效', icon: 'none' });
-      return;
-    }
-
+  const handleJoinWithCheck = async (code: string) => {
     const currentName = getUserName();
     if (!currentName || currentName === '玩家') {
       setPendingCode(code);
@@ -70,11 +60,11 @@ const HomePage: React.FC = () => {
       return;
     }
 
-    doJoin(code, currentName);
+    await doJoin(code, currentName);
   };
 
-  const doJoin = (code: string, playerName: string) => {
-    const joinedGame = joinGameByCode(code, playerName);
+  const doJoin = async (code: string, playerName: string) => {
+    const joinedGame = await joinGameByCode(code, playerName);
     if (joinedGame) {
       setInviteCode('');
       setTimeout(() => {
@@ -91,7 +81,7 @@ const HomePage: React.FC = () => {
     handleJoinWithCheck(inviteCode.trim().toUpperCase());
   };
 
-  const handleConfirmName = () => {
+  const handleConfirmName = async () => {
     if (!tempName.trim()) {
       Taro.showToast({ title: '请输入昵称', icon: 'none' });
       return;
@@ -101,7 +91,7 @@ const HomePage: React.FC = () => {
     setShowNameModal(false);
     
     if (pendingCode) {
-      doJoin(pendingCode, name);
+      await doJoin(pendingCode, name);
       setPendingCode('');
     }
     setTempName('');
@@ -114,7 +104,6 @@ const HomePage: React.FC = () => {
       setShowNameModal(true);
       return;
     }
-    console.log('[Home] Navigate to create game');
     Taro.navigateTo({ url: '/pages/create-game/index' });
   };
 

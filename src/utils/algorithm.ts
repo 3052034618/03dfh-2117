@@ -269,3 +269,123 @@ export const getPlayerTagColor = (tag: string): string => {
   };
   return colors[tag] || '#DFE6E9';
 };
+
+export const incrementalRecalculate = (
+  game: Game,
+  previousResult: AssignmentResult
+): AssignmentResult | null => {
+  const submittedPlayers = game.players.filter(p => p.hasSubmitted);
+  const keywords = game.roleKeywords;
+
+  const isFull = game.players.length >= game.playerCount;
+  const allSubmitted = submittedPlayers.length >= game.players.length;
+
+  if (!isFull || !allSubmitted || submittedPlayers.length === 0 || keywords.length === 0) {
+    return null;
+  }
+
+  const prevPlayerIds = previousResult.previousPlayerIds || [];
+  const currentPlayerIds = submittedPlayers.map(p => p.id);
+  const newPlayerIds = currentPlayerIds.filter(id => !prevPlayerIds.includes(id));
+
+  if (newPlayerIds.length === 0) {
+    return { ...previousResult, calculatedAt: Date.now() };
+  }
+
+  const newPlayers = submittedPlayers.filter(p => newPlayerIds.includes(p.id));
+  const existingPlayers = submittedPlayers.filter(p => !newPlayerIds.includes(p.id));
+
+  const updatedPlans = previousResult.plans.map(plan => {
+    const preservedAssignments: Assignment[] = [];
+    const usedKeywordIds = new Set<string>();
+    const usedPlayerIds = new Set<string>();
+
+    for (const assignment of plan.assignments) {
+      const playerStillExists = existingPlayers.some(p => p.id === assignment.playerId);
+      const keywordStillExists = keywords.some(k => k.id === assignment.roleKeywordId);
+      
+      if (playerStillExists && keywordStillExists) {
+        preservedAssignments.push({
+          ...assignment,
+          isUpdated: false
+        });
+        usedKeywordIds.add(assignment.roleKeywordId);
+        usedPlayerIds.add(assignment.playerId);
+      }
+    }
+
+    const availableKeywords = keywords.filter(k => !usedKeywordIds.has(k.id));
+    const availablePlayers = [...newPlayers];
+
+    if (availableKeywords.length === 0 || availablePlayers.length === 0) {
+      return {
+        ...plan,
+        assignments: preservedAssignments.map(a => ({ ...a, isUpdated: false })),
+      };
+    }
+
+    const n = Math.min(availablePlayers.length, availableKeywords.length);
+    const costMatrix: number[][] = [];
+    const reasonMatrix: string[][][] = [];
+
+    for (let i = 0; i < n; i++) {
+      costMatrix[i] = [];
+      reasonMatrix[i] = [];
+      for (let j = 0; j < availableKeywords.length; j++) {
+        const { score, reasons } = calculateMatchScore(
+          availablePlayers[i],
+          availableKeywords[j],
+          plan.type,
+          submittedPlayers,
+          game.allowCrossGender
+        );
+        
+        let adjustedScore = score;
+        for (const existingPlayer of existingPlayers) {
+          const existingAssignment = preservedAssignments.find(a => a.playerId === existingPlayer.id);
+          if (existingAssignment) {
+            const existingKeyword = keywords.find(k => k.id === existingAssignment.roleKeywordId);
+            if (existingKeyword) {
+              const conflictAttrs = (keywordAttributeMap[availableKeywords[j].keyword] || [])
+                .filter(attr => (keywordAttributeMap[existingKeyword.keyword] || []).includes(attr));
+              if (conflictAttrs.length > 0) {
+                adjustedScore += 1;
+              }
+            }
+          }
+        }
+
+        costMatrix[i][j] = -adjustedScore;
+        reasonMatrix[i][j] = reasons;
+      }
+    }
+
+    const newAssignments = greedyAssignment(costMatrix, n, availableKeywords.length);
+
+    const finalAssignments = [
+      ...preservedAssignments,
+      ...newAssignments.map(({ row, col }) => ({
+        roleKeywordId: availableKeywords[col].id,
+        playerId: availablePlayers[row].id,
+        reasons: reasonMatrix[row][col],
+        isUpdated: true
+      }))
+    ];
+
+    const totalScore = finalAssignments.reduce((sum, a) => sum + a.reasons.length, 0);
+
+    return {
+      ...plan,
+      assignments: finalAssignments,
+      score: totalScore
+    };
+  });
+
+  return {
+    gameId: game.id,
+    plans: updatedPlans,
+    currentPlanIndex: previousResult.currentPlanIndex,
+    calculatedAt: Date.now(),
+    previousPlayerIds: currentPlayerIds
+  };
+};

@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, Image, Button, ScrollView } from '@tarojs/components';
-import Taro, { useDidShow, useRouter } from '@tarojs/taro';
+import { View, Text, Button, ScrollView } from '@tarojs/components';
+import Taro, { useDidShow, useRouter, useShareAppMessage, useShareTimeline } from '@tarojs/taro';
 import dayjs from 'dayjs';
 import classnames from 'classnames';
 import { useGame } from '@/store/GameContext';
 import PlanCard from '@/components/PlanCard';
 import { getGameResult, saveGameResult, getUserId } from '@/utils/storage';
-import { generateAssignmentPlans } from '@/utils/algorithm';
-import { getResultFromCloud } from '@/services/cloudService';
-import type { Game, AssignmentResult, PlanType, Assignment } from '@/types/game';
+import { generateAssignmentPlans, incrementalRecalculate } from '@/utils/algorithm';
+import type { Game, AssignmentResult, Assignment } from '@/types/game';
 import styles from './index.module.scss';
 
 const GameResultPage: React.FC = () => {
@@ -19,7 +18,6 @@ const GameResultPage: React.FC = () => {
   const [result, setResult] = useState<AssignmentResult | null>(null);
   const [currentPlanIndex, setCurrentPlanIndex] = useState(0);
   const [isCreator, setIsCreator] = useState(false);
-  const [changedPlayerIds, setChangedPlayerIds] = useState<string[]>([]);
 
   const gameId = router.params.id as string;
 
@@ -27,11 +25,32 @@ const GameResultPage: React.FC = () => {
     loadData();
   }, [gameId, games]);
 
-  useDidShow(() => {
+  useDidShow(async () => {
     loadData();
     if (game?.shareCode) {
-      refreshGameFromCloudSync(game.id, game.shareCode);
+      const refreshed = await refreshGameFromCloudSync(game.id, game.shareCode);
+      if (refreshed) {
+        setGame(refreshed);
+      }
     }
+  });
+
+  useShareAppMessage(() => {
+    if (!game) return { title: '剧本杀角色分配', path: '/pages/home/index' };
+    return {
+      title: `🎭 ${game.scriptName} - 角色分配结果`,
+      path: `/pages/home/index?invite=${game.shareCode}`,
+      imageUrl: ''
+    };
+  });
+
+  useShareTimeline(() => {
+    if (!game) return { title: '剧本杀角色分配', query: '' };
+    return {
+      title: `🎭 ${game.scriptName} - 角色分配结果`,
+      query: `invite=${game.shareCode}`,
+      imageUrl: ''
+    };
   });
 
   const isGameReady = (g: Game): boolean => {
@@ -51,49 +70,45 @@ const GameResultPage: React.FC = () => {
         return;
       }
 
-      let storedResult = getGameResult(gameId);
-      if (!storedResult) {
-        storedResult = getResultFromCloud(foundGame.shareCode);
-      }
-
+      const storedResult = getGameResult(gameId);
       if (storedResult && storedResult.plans.length > 0) {
-        setResult(storedResult);
-        setCurrentPlanIndex(storedResult.currentPlanIndex);
-        
         const prevIds = storedResult.previousPlayerIds || [];
         const currentIds = foundGame.players.map(p => p.id);
-        const changed = currentIds.filter(id => !prevIds.includes(id));
-        setChangedPlayerIds(changed);
+        const hasNewPlayers = currentIds.some(id => !prevIds.includes(id));
+
+        if (hasNewPlayers && isGameReady(foundGame)) {
+          const incResult = incrementalRecalculate(foundGame, storedResult);
+          if (incResult) {
+            saveResult(incResult);
+            saveGameResult(incResult);
+            setResult(incResult);
+            setCurrentPlanIndex(incResult.currentPlanIndex);
+            return;
+          }
+        }
+
+        setResult(storedResult);
+        setCurrentPlanIndex(storedResult.currentPlanIndex);
       } else {
         calculateResult(foundGame);
       }
     }
   };
 
-  const calculateResult = (gameData: Game, previousIds?: string[]) => {
+  const calculateResult = (gameData: Game) => {
     const plans = generateAssignmentPlans(gameData);
-    
-    const markedPlans = plans.map(plan => {
-      const markedAssignments: Assignment[] = plan.assignments.map(a => ({
-        ...a,
-        isUpdated: changedPlayerIds.length > 0 ? changedPlayerIds.includes(a.playerId) : false
-      }));
-      return { ...plan, assignments: markedAssignments };
-    });
 
-    const prevPlayerIds = previousIds || gameData.players.map(p => p.id);
     const newResult: AssignmentResult = {
       gameId: gameData.id,
-      plans: markedPlans,
+      plans,
       currentPlanIndex: 0,
       calculatedAt: Date.now(),
-      previousPlayerIds: prevPlayerIds
+      previousPlayerIds: gameData.players.map(p => p.id)
     };
     saveResult(newResult);
     saveGameResult(newResult);
     setResult(newResult);
     setCurrentPlanIndex(0);
-    console.log('[GameResult] Result calculated:', gameData.id);
   };
 
   const handlePlanChange = (index: number) => {
@@ -116,13 +131,14 @@ const GameResultPage: React.FC = () => {
       return;
     }
 
-    const replacedPlayers = game.players.filter(p => p.isReplaced).map(p => p.id);
+    const existingResult = result;
+    const hasPrevData = existingResult && existingResult.plans.length > 0;
     
     const res = await Taro.showModal({
       title: '重新计算',
-      content: replacedPlayers.length > 0 
-        ? `检测到有玩家替换，将保留未变动玩家的偏好，重新生成分配方案。`
-        : '将根据最新的玩家数据重新生成分配方案。',
+      content: hasPrevData
+        ? '将保留未变动玩家的原分配，仅围绕新玩家调整。'
+        : '将根据最新的玩家数据生成分配方案。',
       confirmText: '重新计算'
     });
 
@@ -130,11 +146,23 @@ const GameResultPage: React.FC = () => {
       Taro.showLoading({ title: '计算中...' });
       
       setTimeout(() => {
-        const prevIds = result?.previousPlayerIds || game.players.map(p => p.id);
-        calculateResult(game, prevIds);
+        if (hasPrevData) {
+          const incResult = incrementalRecalculate(game, existingResult);
+          if (incResult) {
+            saveResult(incResult);
+            saveGameResult(incResult);
+            setResult(incResult);
+            setCurrentPlanIndex(incResult.currentPlanIndex);
+            Taro.hideLoading();
+            Taro.showToast({ title: '增量计算完成', icon: 'success' });
+            return;
+          }
+        }
+        
+        calculateResult(game);
         Taro.hideLoading();
         Taro.showToast({ title: '计算完成', icon: 'success' });
-      }, 500);
+      }, 300);
     }
   };
 
@@ -172,12 +200,8 @@ const GameResultPage: React.FC = () => {
 
     try {
       await Taro.setClipboardData({ data: resultText });
-      Taro.showToast({ 
-        title: '结果已复制', 
-        icon: 'success' 
-      });
-    } catch (e) {
-      console.error('[GameResult] Copy error:', e);
+      Taro.showToast({ title: '结果已复制', icon: 'success' });
+    } catch {
       Taro.showModal({
         title: '分配结果',
         content: resultText,
@@ -202,8 +226,9 @@ const GameResultPage: React.FC = () => {
   const allSubmitted = isFull && game.players.every(p => p.hasSubmitted);
   const progressPercent = game.playerCount > 0 ? 
     Math.min(100, Math.round((submittedCount / game.playerCount) * 100)) : 0;
+  const hasVacantSlot = game.players.some(p => p.isReplaced && !p.hasSubmitted);
 
-  if (!allSubmitted) {
+  if (!allSubmitted || hasVacantSlot) {
     return (
       <ScrollView className={styles.page} scrollY>
         <View className={styles.header}>
@@ -218,9 +243,9 @@ const GameResultPage: React.FC = () => {
             </Text>
             <Text className={classnames(
               styles.notReadyStatus,
-              isFull ? styles.waiting : styles.recruiting
+              hasVacantSlot ? styles.recruiting : (isFull ? styles.waiting : styles.recruiting)
             )}>
-              {isFull ? '⏳ 等待剩余玩家提交' : '👥 招募中'}
+              {hasVacantSlot ? '⚠️ 有空位待认领' : (isFull ? '⏳ 等待剩余玩家提交' : '👥 招募中')}
             </Text>
           </View>
           <View className={styles.progressBar}>
@@ -229,12 +254,17 @@ const GameResultPage: React.FC = () => {
               style={{ width: `${progressPercent}%` }} 
             />
           </View>
-          {!isFull && (
+          {hasVacantSlot && (
+            <Text className={styles.notReadyTip}>
+              ⚠️ 有空位待认领，请把邀请码 {game.shareCode} 发给新玩家
+            </Text>
+          )}
+          {!isFull && !hasVacantSlot && (
             <Text className={styles.notReadyTip}>
               💡 还差 {game.playerCount - game.players.length} 人满员，分配结果将在全员提交后生成
             </Text>
           )}
-          {isFull && !allSubmitted && (
+          {isFull && !allSubmitted && !hasVacantSlot && (
             <Text className={styles.notReadyTip}>
               ⏳ 还差 {game.players.length - submittedCount} 人提交，请耐心等待
             </Text>
@@ -262,17 +292,18 @@ const GameResultPage: React.FC = () => {
   }
 
   const currentPlan = result.plans[currentPlanIndex];
-  const updatedCount = currentPlan.assignments.filter(a => a.isUpdated).length;
+  const updatedAssignments = currentPlan.assignments.filter(a => a.isUpdated);
+  const updatedCount = updatedAssignments.length;
 
   return (
     <ScrollView className={styles.page} scrollY>
       <View className={styles.header}>
         <Text className={styles.title}>🎉 角色分配结果</Text>
         <Text className={styles.subtitle}>{game.scriptName}</Text>
-        {changedPlayerIds.length > 0 && updatedCount > 0 && (
+        {updatedCount > 0 && (
           <View className={styles.updatedNotice}>
             <Text className={styles.updatedText}>
-              🔄 本次有 {updatedCount} 个分配因换人变动，标记为高亮
+              🔄 本次有 {updatedCount} 个分配因换人调整，标记为高亮，其余玩家保持原分配不变
             </Text>
           </View>
         )}
@@ -310,7 +341,6 @@ const GameResultPage: React.FC = () => {
           plan={currentPlan}
           game={game}
           active={true}
-          highlightPlayerIds={changedPlayerIds}
         />
       </View>
 
